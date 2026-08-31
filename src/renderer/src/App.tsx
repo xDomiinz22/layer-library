@@ -17,6 +17,11 @@ const NAV: { id: View; icon: string; label: string }[] = [
   { id: 'collections', icon: '❏', label: 'Colecciones' }
 ]
 
+function readActiveRoot(): number | null {
+  const v = localStorage.getItem('activeRootId')
+  return v && v !== 'null' ? Number(v) : null
+}
+
 export function App() {
   const [roots, setRoots] = useState<LibraryRoot[]>([])
   const [stats, setStats] = useState<LibraryStats | null>(null)
@@ -26,6 +31,7 @@ export function App() {
   const [progress, setProgress] = useState<ScanProgress | null>(null)
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
+  const [activeRootId, setActiveRootId] = useState<number | null>(readActiveRoot)
   const [view, setView] = useState<View>('library')
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
@@ -36,23 +42,23 @@ export function App() {
     return CARD_SIZES.includes(v) ? v : CARD_SIZES[1]
   })
 
-  const reqRef = useRef({ query, filters })
-  reqRef.current = { query, filters }
+  const reqRef = useRef({ query, filters, activeRootId })
+  reqRef.current = { query, filters, activeRootId }
 
   const refreshRoots = useCallback(async () => {
     setRoots(await window.api.listRoots())
   }, [])
 
   const refreshFiles = useCallback(async () => {
-    const { query: q, filters: f } = reqRef.current
-    const res = await window.api.listFiles({ query: q, ...f, limit: 100000 })
+    const { query: q, filters: f, activeRootId: rid } = reqRef.current
+    const res = await window.api.listFiles({ query: q, ...f, rootId: rid, limit: 100000 })
     setFiles(res.items)
     setFileTotal(res.total)
   }, [])
 
   const refreshMeta = useCallback(async () => {
     await Promise.all([
-      window.api.getStats().then(setStats),
+      window.api.getStats(reqRef.current.activeRootId).then(setStats),
       window.api.listQueue().then((q) => setQueueCount(q.length))
     ])
   }, [])
@@ -86,24 +92,32 @@ export function App() {
     }
   }, [refreshAll, refreshRoots, refreshMeta, refreshFiles])
 
+  // Recarga lista + stats al cambiar búsqueda, filtros o biblioteca activa.
   useEffect(() => {
-    const t = setTimeout(() => void refreshFiles(), 180)
+    const t = setTimeout(() => {
+      void refreshFiles()
+      void refreshMeta()
+    }, 160)
     return () => clearTimeout(t)
-  }, [query, filters, refreshFiles])
+  }, [query, filters, activeRootId, refreshFiles, refreshMeta])
 
   useEffect(() => {
     try {
       localStorage.setItem('cardSize', String(cardSize))
+      localStorage.setItem('activeRootId', String(activeRootId))
     } catch {
       /* modo restringido */
     }
-  }, [cardSize])
+  }, [cardSize, activeRootId])
 
   const addRoot = useCallback(async () => {
     setBusy(true)
     try {
       const added = await window.api.addRoot()
-      if (added) await refreshAll()
+      if (added) {
+        setActiveRootId(added.id)
+        await refreshAll()
+      }
     } finally {
       setBusy(false)
     }
@@ -112,6 +126,7 @@ export function App() {
   const removeRoot = useCallback(
     async (r: LibraryRoot) => {
       await window.api.removeRoot(r.id)
+      setActiveRootId((cur) => (cur === r.id ? null : cur))
       await refreshAll()
     },
     [refreshAll]
@@ -128,6 +143,12 @@ export function App() {
     [refreshRoots]
   )
 
+  const openLibrary = (rid: number | null): void => {
+    setActiveRootId(rid)
+    setView('library')
+    setSelectedId(null)
+  }
+
   const onlineCount = roots.filter((r) => r.online).length
   const walking = roots.some((r) => r.scanState === 'walking') || progress?.phase === 'walking'
   const working =
@@ -143,10 +164,10 @@ export function App() {
     null
   )
   const filtersActive =
-    filters.formats.length > 0 ||
-    filters.rootId != null ||
-    filters.dateWindow !== 'any' ||
-    filters.onlyDuplicates
+    filters.formats.length > 0 || filters.dateWindow !== 'any' || filters.onlyDuplicates
+
+  const activeRoot = roots.find((r) => r.id === activeRootId) ?? null
+  const totalFileCount = roots.reduce((s, r) => s + r.fileCount, 0)
 
   const navBadge = (id: View): number =>
     id === 'duplicates' ? (stats?.duplicateGroups ?? 0) : id === 'queue' ? queueCount : 0
@@ -182,8 +203,26 @@ export function App() {
         </div>
 
         <div className="roots">
+          {roots.length > 1 && (
+            <div
+              className={`root-item pick${view === 'library' && activeRootId == null ? ' on' : ''}`}
+              onClick={() => openLibrary(null)}
+            >
+              <span className="dot all-dot" />
+              <span className="meta">
+                <div className="name">Todas las bibliotecas</div>
+                <div className="sub">{formatCount(totalFileCount)} archivos</div>
+              </span>
+            </div>
+          )}
           {roots.map((r) => (
-            <div className="root-item" key={r.id} onDoubleClick={() => renameRoot(r)} title={r.path}>
+            <div
+              className={`root-item pick${view === 'library' && activeRootId === r.id ? ' on' : ''}`}
+              key={r.id}
+              onClick={() => openLibrary(r.id)}
+              onDoubleClick={() => renameRoot(r)}
+              title={r.path}
+            >
               <span
                 className={`dot${r.online ? '' : ' offline'}${r.scanState === 'walking' ? ' busy' : ''}`}
               />
@@ -197,7 +236,14 @@ export function App() {
                       : `${formatCount(r.fileCount)} archivos`}
                 </div>
               </span>
-              <button className="kill" title="Quitar de la biblioteca" onClick={() => removeRoot(r)}>
+              <button
+                className="kill"
+                title="Quitar de la biblioteca"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  removeRoot(r)
+                }}
+              >
                 ✕
               </button>
             </div>
@@ -225,7 +271,9 @@ export function App() {
             <div className="search">
               <span>⌕</span>
               <input
-                placeholder="Buscar en la biblioteca…"
+                placeholder={
+                  activeRoot ? `Buscar en ${activeRoot.label}…` : 'Buscar en todas las bibliotecas…'
+                }
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
@@ -249,8 +297,12 @@ export function App() {
               view === 'library' && (
                 <button
                   className="btn ghost"
-                  onClick={() => window.api.rescanAll()}
-                  title="Volver a escanear todo"
+                  onClick={() =>
+                    activeRootId != null
+                      ? window.api.rescanRoot(activeRootId)
+                      : window.api.rescanAll()
+                  }
+                  title={activeRoot ? `Reescanear ${activeRoot.label}` : 'Volver a escanear todo'}
                 >
                   ↻ Reescanear
                 </button>
@@ -274,9 +326,8 @@ export function App() {
               <div className="empty-illo">🗂️</div>
               <h1>Tu colección de impresión 3D, por fin ordenada</h1>
               <p>
-                Añade las carpetas donde guardas tus STL y 3MF — disco local, unidad externa o NAS.
-                Layer Library las escanea y construye una única biblioteca con miniaturas y búsqueda
-                instantánea.
+                Añade las carpetas donde guardas tus modelos — disco local, unidad externa o NAS.
+                Cada carpeta es una biblioteca independiente que puedes ver por separado.
               </p>
               <button className="btn accent" onClick={addRoot} disabled={busy}>
                 + Añadir la primera carpeta
@@ -297,6 +348,7 @@ export function App() {
         ) : (
           <>
             <div className="stat-strip">
+              {activeRoot && <span className="strip-scope">📁 {activeRoot.label}</span>}
               <span>
                 <b>{formatCount(stats?.totalFiles ?? 0)}</b> archivos
               </span>
@@ -308,12 +360,6 @@ export function App() {
                   <b>{formatCount(f.count)}</b> {f.format.toUpperCase()}
                 </span>
               ))}
-              {stats != null && stats.duplicateFiles > 0 && (
-                <span className="strip-dup">
-                  <b>{formatCount(stats.duplicateFiles)}</b> duplicados
-                  {stats.wastedBytes > 0 && ` · ${formatBytes(stats.wastedBytes)}`}
-                </span>
-              )}
               {stats != null && stats.pendingThumb > 0 && (
                 <span className="strip-muted">
                   <b>{formatCount(stats.pendingThumb)}</b> sin miniatura
@@ -328,7 +374,6 @@ export function App() {
             <FilterBar
               filters={filters}
               onChange={setFilters}
-              roots={roots}
               formats={(stats?.byFormat ?? []).map((x) => x.format)}
               cardSize={cardSize}
               onCardSize={setCardSize}
@@ -343,7 +388,9 @@ export function App() {
                     ? 'Ningún archivo coincide con la búsqueda.'
                     : walking
                       ? 'Escaneando… los archivos aparecerán aquí.'
-                      : 'No se han encontrado archivos STL ni 3MF en estas carpetas.'}
+                      : activeRoot
+                        ? `${activeRoot.label} no tiene modelos indexados todavía.`
+                        : 'No se han encontrado modelos en estas carpetas.'}
               </div>
             ) : (
               <ModelGrid
@@ -357,11 +404,7 @@ export function App() {
         )}
       </main>
 
-      <DetailPanel
-        fileId={selectedId}
-        onClose={() => setSelectedId(null)}
-        onTrashed={refreshAll}
-      />
+      <DetailPanel fileId={selectedId} onClose={() => setSelectedId(null)} onTrashed={refreshAll} />
     </div>
   )
 }

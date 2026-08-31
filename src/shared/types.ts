@@ -191,7 +191,7 @@ export interface LayerApi {
   renameRoot(id: number, label: string): Promise<void>
   rescanAll(): Promise<void>
   rescanRoot(id: number): Promise<void>
-  getStats(): Promise<LibraryStats>
+  getStats(rootId?: number | null): Promise<LibraryStats>
   listFiles(opts: ListFilesOptions): Promise<ListFilesResult>
   getFileDetail(id: number): Promise<FileDetail | null>
   revealInExplorer(path: string): Promise<void>

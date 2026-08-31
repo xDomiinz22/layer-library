@@ -80,9 +80,10 @@ function mockFiles(n: number): ModelFile[] {
     const fmt = FORMATS[i % FORMATS.length]
     const status: ModelFile['thumbStatus'] =
       i % 7 === 3 ? 'pending' : i % 11 === 5 ? 'failed' : 'ready'
+    const rootId = (i % 3) + 1
     return {
       id: i + 1,
-      rootId: 1,
+      rootId,
       path: `Z:\\Modelos\\Descargas\\${name}.${fmt}`,
       relPath: `${i % 2 ? 'dragons/' : ''}${name}.${fmt}`,
       name: `${name}.${fmt}`,
@@ -143,22 +144,23 @@ export function installDevApi(): void {
     renameRoot: async () => {},
     rescanAll: async () => {},
     rescanRoot: async () => {},
-    getStats: async () => {
+    getStats: async (rootId) => {
+      const scope = rootId != null ? files.filter((f) => f.rootId === rootId) : files
       const byFmt: Record<string, { count: number; size: number }> = {}
-      for (const f of files) {
+      for (const f of scope) {
         byFmt[f.format] ??= { count: 0, size: 0 }
         byFmt[f.format].count++
         byFmt[f.format].size += f.size
       }
       return {
-        totalFiles: files.length,
-        totalSize: files.reduce((s, f) => s + f.size, 0),
+        totalFiles: scope.length,
+        totalSize: scope.reduce((s, f) => s + f.size, 0),
         byFormat: Object.entries(byFmt).map(([format, v]) => ({
           format: format as ModelFile['format'],
           ...v
         })),
         pendingHash: 6,
-        pendingThumb: files.filter((f) => f.thumbStatus !== 'ready').length,
+        pendingThumb: scope.filter((f) => f.thumbStatus !== 'ready').length,
         duplicateGroups: 3,
         duplicateFiles: 3,
         wastedBytes: 22_000_000
@@ -167,6 +169,7 @@ export function installDevApi(): void {
     listFiles: async (opts): Promise<ListFilesResult> => {
       const q = (opts.query ?? '').toLowerCase()
       let items = files.filter((f) => !q || f.name.toLowerCase().includes(q))
+      if (opts.rootId != null) items = items.filter((f) => f.rootId === opts.rootId)
       if (opts.formats && opts.formats.length) {
         items = items.filter((f) => opts.formats!.includes(f.format))
       }

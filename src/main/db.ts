@@ -511,29 +511,38 @@ export function getFilesByIds(ids: number[]): ModelFile[] {
   return ids.map((i) => byId.get(i)).filter((x): x is ModelFile => x != null)
 }
 
-export function computeStats(): LibraryStats {
+export function computeStats(rootId?: number | null): LibraryStats {
   const d = getDb()
+  const w = rootId != null ? ' WHERE root_id = ?' : ''
+  const p: number[] = rootId != null ? [rootId] : []
+
   const totals = d
-    .prepare('SELECT COUNT(*) AS n, COALESCE(SUM(size),0) AS s FROM files')
-    .get() as unknown as { n: number; s: number }
+    .prepare(`SELECT COUNT(*) AS n, COALESCE(SUM(size),0) AS s FROM files${w}`)
+    .get(...p) as unknown as { n: number; s: number }
 
   const byFormat = (
     d
       .prepare(
-        'SELECT format, COUNT(*) AS count, COALESCE(SUM(size),0) AS size FROM files GROUP BY format ORDER BY count DESC'
+        `SELECT format, COUNT(*) AS count, COALESCE(SUM(size),0) AS size FROM files${w} GROUP BY format ORDER BY count DESC`
       )
-      .all() as unknown as { format: string; count: number; size: number }[]
+      .all(...p) as unknown as { format: string; count: number; size: number }[]
   ).map((r) => ({ format: r.format as ModelFormat, count: r.count, size: r.size }))
 
   const pendingHash = (
-    d.prepare('SELECT COUNT(*) AS n FROM files WHERE hash IS NULL').get() as unknown as { n: number }
+    d
+      .prepare(`SELECT COUNT(*) AS n FROM files${w ? w + ' AND' : ' WHERE'} hash IS NULL`)
+      .get(...p) as unknown as { n: number }
   ).n
   const pendingThumb = (
     d
-      .prepare("SELECT COUNT(*) AS n FROM files WHERE thumb_status = 'pending'")
-      .get() as unknown as { n: number }
+      .prepare(
+        `SELECT COUNT(*) AS n FROM files${w ? w + ' AND' : ' WHERE'} thumb_status = 'pending'`
+      )
+      .get(...p) as unknown as { n: number }
   ).n
 
+  // Los duplicados se calculan siempre globalmente: el valor está en detectar
+  // la misma pieza repetida ENTRE bibliotecas.
   const dup = d
     .prepare(
       `SELECT COUNT(*) AS groups, COALESCE(SUM(cnt-1),0) AS dupFiles, COALESCE(SUM((cnt-1)*sz),0) AS wasted

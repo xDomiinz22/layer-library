@@ -185,6 +185,28 @@ button {
   color: var(--text);
 }
 
+.root-item.pick {
+  cursor: pointer;
+}
+
+.root-item.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.root-item.on .sub {
+  color: #ff7a2faa;
+}
+
+.dot.all-dot {
+  background: var(--text-faint);
+  box-shadow: none;
+}
+
+.root-item.on .dot.all-dot {
+  background: var(--accent);
+}
+
 .root-item .dot {
   width: 7px;
   height: 7px;
@@ -457,6 +479,14 @@ button {
 
 .stat-strip .strip-dup b {
   color: var(--accent);
+}
+
+.stat-strip .strip-scope {
+  font-weight: 650;
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 2px 9px;
+  border-radius: 999px;
 }
 
 .strip-spacer {

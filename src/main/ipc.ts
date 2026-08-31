@@ -51,7 +51,7 @@ export function registerIpc(): void {
     void scanRoot(id)
   })
 
-  ipcMain.handle('stats:get', () => computeStats())
+  ipcMain.handle('stats:get', (_e, rootId?: number | null) => computeStats(rootId))
   ipcMain.handle('files:list', (_e, opts: ListFilesOptions) => listFiles(opts ?? {}))
   ipcMain.handle('files:detail', (_e, id: number) => getFileDetail(id))
   ipcMain.handle('files:trash', (_e, ids: number[]) => trashFiles(ids))

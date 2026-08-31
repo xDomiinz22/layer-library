@@ -1,8 +1,7 @@
-import type { DateWindow, FileSort, LibraryRoot, ModelFormat } from '@shared/types'
+import type { DateWindow, FileSort, ModelFormat } from '@shared/types'
 
 export interface Filters {
   formats: ModelFormat[]
-  rootId: number | null
   dateWindow: DateWindow
   sort: FileSort
   onlyDuplicates: boolean
@@ -10,7 +9,6 @@ export interface Filters {
 
 export const DEFAULT_FILTERS: Filters = {
   formats: [],
-  rootId: null,
   dateWindow: 'any',
   sort: 'recent',
   onlyDuplicates: false
@@ -37,7 +35,6 @@ const CARD_SIZES = [132, 168, 216]
 export function FilterBar({
   filters,
   onChange,
-  roots,
   formats,
   cardSize,
   onCardSize,
@@ -45,7 +42,6 @@ export function FilterBar({
 }: {
   filters: Filters
   onChange: (f: Filters) => void
-  roots: LibraryRoot[]
   formats: ModelFormat[]
   cardSize: number
   onCardSize: (s: number) => void
@@ -62,10 +58,7 @@ export function FilterBar({
   }
 
   const dirty =
-    filters.formats.length > 0 ||
-    filters.rootId != null ||
-    filters.dateWindow !== 'any' ||
-    filters.onlyDuplicates
+    filters.formats.length > 0 || filters.dateWindow !== 'any' || filters.onlyDuplicates
 
   return (
     <div className="filterbar">
@@ -87,19 +80,6 @@ export function FilterBar({
           ⧉ Duplicados
         </button>
       </div>
-
-      <select
-        className="sel"
-        value={filters.rootId ?? ''}
-        onChange={(e) => set('rootId', e.target.value ? Number(e.target.value) : null)}
-      >
-        <option value="">Todas las bibliotecas</option>
-        {roots.map((r) => (
-          <option key={r.id} value={r.id}>
-            {r.label}
-          </option>
-        ))}
-      </select>
 
       <select
         className="sel"
@@ -128,9 +108,7 @@ export function FilterBar({
       {dirty && (
         <button
           className="btn ghost sm"
-          onClick={() =>
-            onChange({ ...DEFAULT_FILTERS, sort: filters.sort })
-          }
+          onClick={() => onChange({ ...DEFAULT_FILTERS, sort: filters.sort })}
         >
           Limpiar
         </button>
