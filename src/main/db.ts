@@ -107,6 +107,13 @@ function migrate(d: DatabaseSync): void {
   add('ALTER TABLE files ADD COLUMN dim_x REAL')
   add('ALTER TABLE files ADD COLUMN dim_y REAL')
   add('ALTER TABLE files ADD COLUMN dim_z REAL')
+  // Metadatos de impresión (3MF / GCODE)
+  add("ALTER TABLE files ADD COLUMN print_status TEXT DEFAULT 'pending'")
+  add('ALTER TABLE files ADD COLUMN print_seconds INTEGER')
+  add('ALTER TABLE files ADD COLUMN filament_g REAL')
+  add('ALTER TABLE files ADD COLUMN filament_types TEXT')
+  add('ALTER TABLE files ADD COLUMN filament_colors TEXT')
+  add('ALTER TABLE files ADD COLUMN plate_count INTEGER')
 }
 
 export function initDb(): DatabaseSync {
@@ -226,7 +233,10 @@ export function upsertFile(rootId: number, f: WalkedFile, gen: number): boolean 
     getDb()
       .prepare(
         `UPDATE files SET rel_path = ?, name = ?, format = ?, size = ?, mtime_ms = ?,
-           hash = NULL, thumb_status = 'pending', thumb_file = NULL, scan_gen = ?
+           hash = NULL, thumb_status = 'pending', thumb_file = NULL,
+           print_status = 'pending', print_seconds = NULL, filament_g = NULL,
+           filament_types = NULL, filament_colors = NULL, plate_count = NULL,
+           scan_gen = ?
          WHERE id = ?`
       )
       .run(f.relPath, f.name, f.format, f.size, Math.round(f.mtimeMs), gen, existing.id)
@@ -336,6 +346,64 @@ export function setThumbResult(id: number, status: 'ready' | 'failed', file: str
   getDb().prepare('UPDATE files SET thumb_status = ?, thumb_file = ? WHERE id = ?').run(status, file, id)
 }
 
+// --- Metadatos de impresión (3MF / GCODE) --------------------------
+
+export interface PendingMeta {
+  id: number
+  path: string
+  format: ModelFormat
+  hash: string
+  size: number
+}
+
+export function selectPendingMetaFiles(limit = 100000): PendingMeta[] {
+  return getDb()
+    .prepare(
+      `SELECT id, path, format, hash, size FROM files
+       WHERE print_status = 'pending' AND hash IS NOT NULL
+         AND format IN ('3mf','gcode')
+       ORDER BY mtime_ms DESC
+       LIMIT ?`
+    )
+    .all(limit) as unknown as PendingMeta[]
+}
+
+export function countPendingMeta(): number {
+  return (
+    getDb()
+      .prepare(
+        "SELECT COUNT(*) AS n FROM files WHERE print_status = 'pending' AND hash IS NOT NULL AND format IN ('3mf','gcode')"
+      )
+      .get() as unknown as { n: number }
+  ).n
+}
+
+export interface PrintInfo {
+  seconds: number | null
+  grams: number | null
+  types: string[]
+  colors: string[]
+  plates: number | null
+}
+
+/** Guarda los metadatos de impresión para todos los archivos con ese hash. */
+export function setPrintInfoByHash(hash: string, info: PrintInfo | null): void {
+  getDb()
+    .prepare(
+      `UPDATE files SET print_status = 'done', print_seconds = ?, filament_g = ?,
+         filament_types = ?, filament_colors = ?, plate_count = ?
+       WHERE hash = ? AND print_status = 'pending'`
+    )
+    .run(
+      info?.seconds ?? null,
+      info?.grams ?? null,
+      info && info.types.length ? info.types.join(',') : null,
+      info && info.colors.length ? info.colors.join(',') : null,
+      info?.plates ?? null,
+      hash
+    )
+}
+
 // --- Files: lectura / stats -------------------------------------------
 
 interface FileRow {
@@ -355,6 +423,15 @@ interface FileRow {
   dim_x: number | null
   dim_y: number | null
   dim_z: number | null
+  print_seconds: number | null
+  filament_g: number | null
+  filament_types: string | null
+  filament_colors: string | null
+  plate_count: number | null
+}
+
+function splitList(s: string | null): string[] {
+  return s ? s.split(',').filter(Boolean) : []
 }
 
 export function rowToFile(r: FileRow): ModelFile {
@@ -375,7 +452,12 @@ export function rowToFile(r: FileRow): ModelFile {
     dim:
       r.dim_x != null && r.dim_y != null && r.dim_z != null
         ? [r.dim_x, r.dim_y, r.dim_z]
-        : null
+        : null,
+    printSeconds: r.print_seconds,
+    filamentG: r.filament_g,
+    filamentTypes: splitList(r.filament_types),
+    filamentColors: splitList(r.filament_colors),
+    plateCount: r.plate_count
   }
 }
 
@@ -395,7 +477,10 @@ const SORT_SQL: Record<FileSort, string> = {
   oldest: 'f.mtime_ms ASC',
   name: 'f.name COLLATE NOCASE ASC',
   size: 'f.size DESC',
-  'size-asc': 'f.size ASC'
+  'size-asc': 'f.size ASC',
+  time: 'f.print_seconds DESC NULLS LAST',
+  'time-asc': 'f.print_seconds ASC NULLS LAST',
+  grams: 'f.filament_g DESC NULLS LAST'
 }
 
 const DATE_WINDOW_MS: Record<string, number> = {
@@ -540,6 +625,13 @@ export function computeStats(rootId?: number | null): LibraryStats {
       )
       .get(...p) as unknown as { n: number }
   ).n
+  const pendingMeta = (
+    d
+      .prepare(
+        `SELECT COUNT(*) AS n FROM files${w ? w + ' AND' : ' WHERE'} print_status = 'pending' AND format IN ('3mf','gcode')`
+      )
+      .get(...p) as unknown as { n: number }
+  ).n
 
   // Los duplicados se calculan siempre globalmente: el valor está en detectar
   // la misma pieza repetida ENTRE bibliotecas.
@@ -557,6 +649,7 @@ export function computeStats(rootId?: number | null): LibraryStats {
     byFormat,
     pendingHash,
     pendingThumb,
+    pendingMeta,
     duplicateGroups: dup.groups,
     duplicateFiles: dup.dupFiles,
     wastedBytes: dup.wasted

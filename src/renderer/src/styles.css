@@ -1089,6 +1089,39 @@ img.card-img {
   backdrop-filter: blur(3px);
 }
 
+.card-colors {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 5px;
+  background: rgba(11, 15, 26, 0.5);
+  backdrop-filter: blur(3px);
+}
+
+.card-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+}
+
+.card-time {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  font-size: 9.5px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: rgba(11, 15, 26, 0.6);
+  backdrop-filter: blur(3px);
+}
+
 .card-name {
   font-size: 12.5px;
   font-weight: 550;
@@ -1216,6 +1249,25 @@ img.card-img {
 
 .kv .kv-hash {
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+.kv .kv-note {
+  color: var(--text-faint);
+}
+
+.kv .kv-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+
+.swatch {
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
 }
 
 .detail-actions {

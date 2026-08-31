@@ -27,6 +27,22 @@ export function formatTris(n: number | null): string {
   return `${(n / 1_000_000).toFixed(1)} M tri`
 }
 
+export function formatDuration(seconds: number | null): string {
+  if (seconds == null || seconds <= 0) return '—'
+  const d = Math.floor(seconds / 86400)
+  const h = Math.floor((seconds % 86400) / 3600)
+  const m = Math.round((seconds % 3600) / 60)
+  if (d > 0) return `${d} d ${h} h`
+  if (h > 0) return `${h} h ${m} min`
+  return `${m} min`
+}
+
+export function formatGrams(g: number | null): string {
+  if (g == null || g <= 0) return '—'
+  if (g >= 1000) return `${(g / 1000).toFixed(2)} kg`
+  return `${g < 100 ? Math.round(g * 10) / 10 : Math.round(g)} g`
+}
+
 export function fullDate(ms: number): string {
   return new Date(ms).toLocaleString('es', {
     dateStyle: 'medium',

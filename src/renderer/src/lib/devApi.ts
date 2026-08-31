@@ -73,6 +73,8 @@ function fakeThumb(i: number): string {
 }
 
 const FORMATS = ['stl', 'stl', 'stl', '3mf', '3mf', 'obj', 'gcode', 'step'] as const
+const FIL_TYPES = ['PLA', 'PETG', 'PLA-CF', 'TPU', 'ABS']
+const FIL_COLORS = ['#1B1B1B', '#E7402A', '#2F6DF0', '#F4B60B', '#19A974', '#8E44EC']
 
 function mockFiles(n: number): ModelFile[] {
   return Array.from({ length: n }, (_, i) => {
@@ -81,6 +83,8 @@ function mockFiles(n: number): ModelFile[] {
     const status: ModelFile['thumbStatus'] =
       i % 7 === 3 ? 'pending' : i % 11 === 5 ? 'failed' : 'ready'
     const rootId = (i % 3) + 1
+    const hasPrint = (fmt === '3mf' || fmt === 'gcode') && status === 'ready'
+    const plates = fmt === '3mf' ? (i % 3) + 1 : 1
     return {
       id: i + 1,
       rootId,
@@ -95,7 +99,12 @@ function mockFiles(n: number): ModelFile[] {
       thumbFile: status === 'ready' ? fakeThumb(i) : null,
       addedAt: Date.now() - i * 3.6e6,
       triCount: status === 'ready' ? 12000 + i * 3100 : null,
-      dim: status === 'ready' ? [40 + i, 55 + (i % 7) * 4, 22 + (i % 5) * 6] : null
+      dim: status === 'ready' ? [40 + i, 55 + (i % 7) * 4, 22 + (i % 5) * 6] : null,
+      printSeconds: hasPrint ? plates * (2400 + (i % 6) * 1300) : null,
+      filamentG: hasPrint ? plates * (14 + (i % 9) * 7.5) : null,
+      filamentTypes: hasPrint ? FIL_TYPES.slice(0, 1 + (i % 3)) : [],
+      filamentColors: hasPrint ? FIL_COLORS.slice(i % 3, (i % 3) + 1 + (i % 4)) : [],
+      plateCount: fmt === '3mf' && hasPrint ? plates : null
     } as ModelFile
   })
 }
@@ -161,6 +170,7 @@ export function installDevApi(): void {
         })),
         pendingHash: 6,
         pendingThumb: scope.filter((f) => f.thumbStatus !== 'ready').length,
+        pendingMeta: 0,
         duplicateGroups: 3,
         duplicateFiles: 3,
         wastedBytes: 22_000_000

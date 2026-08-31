@@ -28,7 +28,10 @@ const SORT_LABELS: Record<FileSort, string> = {
   oldest: 'Más antiguos',
   name: 'Nombre (A→Z)',
   size: 'Tamaño (↓)',
-  'size-asc': 'Tamaño (↑)'
+  'size-asc': 'Tamaño (↑)',
+  time: 'Tiempo impresión (↓)',
+  'time-asc': 'Tiempo impresión (↑)',
+  grams: 'Filamento (↓)'
 }
 
 const CARD_SIZES = [132, 168, 216]

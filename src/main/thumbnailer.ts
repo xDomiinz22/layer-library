@@ -7,13 +7,15 @@ import {
   findThumbByHash,
   getDb,
   selectPendingThumbFiles,
+  setPrintInfoByHash,
   setThumbResult,
   setThumbResultByHash,
   type PendingThumb
 } from './db'
 import { emitLibraryChanged, emitScanProgress } from './emit'
-import { extract3mfThumbnail } from './threemf'
-import { extractGcodeThumbnail } from './gcode'
+import { extract3mfPrintInfo, extract3mfThumbnail } from './threemf'
+import { extractGcodeInfo, extractGcodeThumbnail } from './gcode'
+import { metadataPending } from './metadata'
 import type { MeshMeta } from '../shared/types'
 
 interface RenderResult {
@@ -214,13 +216,11 @@ async function processOne(f: PendingThumb): Promise<void> {
   // El tamaño no importa: leemos solo cabecera y cola.
   if (f.format === 'gcode') {
     try {
-      const png = extractGcodeThumbnail(await readHeadTail(f.path, 1_500_000, st.size))
-      if (png) {
-        await writeFile(cachePath, png)
-        setThumbResultByHash(f.hash, 'ready', cacheName)
-      } else {
-        setThumbResultByHash(f.hash, 'failed', null)
-      }
+      const head = await readHeadTail(f.path, 1_500_000, st.size)
+      setPrintInfoByHash(f.hash, extractGcodeInfo(head.toString('latin1')))
+      const png = extractGcodeThumbnail(head)
+      setThumbResultByHash(f.hash, png ? 'ready' : 'failed', png ? cacheName : null)
+      if (png) await writeFile(cachePath, png)
     } catch {
       setThumbResultByHash(f.hash, 'failed', null)
     }
@@ -232,7 +232,9 @@ async function processOne(f: PendingThumb): Promise<void> {
   if (f.format === '3mf') {
     if (st.size <= MAX_ZIP_BYTES) {
       try {
-        const png = extract3mfThumbnail(await readFile(f.path))
+        const zbuf = await readFile(f.path)
+        setPrintInfoByHash(f.hash, extract3mfPrintInfo(zbuf))
+        const png = extract3mfThumbnail(zbuf)
         if (png) {
           await writeFile(cachePath, png)
           setThumbResultByHash(f.hash, 'ready', cacheName)
@@ -295,7 +297,6 @@ export async function thumbnailPending(): Promise<void> {
     running = false
   }
 
-  emitScanProgress({ rootId: null, phase: 'done', discovered: 0, processed: 0, total: 0 })
   emitLibraryChanged()
 
   // Libera la ventana de render si ya no hay trabajo.
@@ -304,4 +305,7 @@ export async function thumbnailPending(): Promise<void> {
     win = null
     ready = null
   }
+
+  // Backfill de metadatos de impresión (3MF/GCODE que no pasaron por aquí).
+  void metadataPending()
 }

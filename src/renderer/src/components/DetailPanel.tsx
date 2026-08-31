@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Collection, FileDetail } from '@shared/types'
 import { thumbUrl } from './ModelGrid'
-import { formatBytes, formatDims, formatTris, fullDate } from '../lib/format'
+import {
+  formatBytes,
+  formatDims,
+  formatDuration,
+  formatGrams,
+  formatTris,
+  fullDate
+} from '../lib/format'
 import { toast } from '../lib/toast'
 import {
   CheckIcon,
@@ -148,6 +155,38 @@ export function DetailPanel({
                 <dd>{formatDims(f.dim)}</dd>
                 <dt>Malla</dt>
                 <dd>{formatTris(f.triCount)}</dd>
+                {f.printSeconds != null && (
+                  <>
+                    <dt>Impresión</dt>
+                    <dd>
+                      {formatDuration(f.printSeconds)}
+                      {f.plateCount && f.plateCount > 1 && (
+                        <span className="kv-note"> · {f.plateCount} platos</span>
+                      )}
+                    </dd>
+                  </>
+                )}
+                {f.filamentG != null && (
+                  <>
+                    <dt>Filamento</dt>
+                    <dd>
+                      {formatGrams(f.filamentG)}
+                      {f.filamentTypes.length > 0 && (
+                        <span className="kv-note"> · {f.filamentTypes.join(', ')}</span>
+                      )}
+                    </dd>
+                  </>
+                )}
+                {f.filamentColors.length > 0 && (
+                  <>
+                    <dt>Colores</dt>
+                    <dd className="kv-colors">
+                      {f.filamentColors.map((c) => (
+                        <span key={c} className="swatch" style={{ background: c }} title={c} />
+                      ))}
+                    </dd>
+                  </>
+                )}
                 <dt>Modificado</dt>
                 <dd>{fullDate(f.mtimeMs)}</dd>
                 <dt>Biblioteca</dt>

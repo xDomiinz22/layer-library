@@ -176,7 +176,9 @@ export function App() {
     walking ||
     progress?.phase === 'hashing' ||
     progress?.phase === 'thumbnails' ||
-    (stats != null && (stats.pendingHash > 0 || stats.pendingThumb > 0))
+    progress?.phase === 'metadata' ||
+    (stats != null &&
+      (stats.pendingHash > 0 || stats.pendingThumb > 0 || stats.pendingMeta > 0))
   const pct =
     progress && progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : null
 

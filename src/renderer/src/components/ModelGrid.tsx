@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useResizeObserver } from '../lib/useResizeObserver'
 import type { ModelFile } from '@shared/types'
+import { formatDuration } from '../lib/format'
 import { FormatGlyph } from './icons'
 
 const FORMAT_COLOR: Record<string, string> = {
@@ -110,6 +111,16 @@ export function ModelGrid({
                     >
                       {f.format}
                     </span>
+                    {f.filamentColors.length > 0 && (
+                      <span className="card-colors">
+                        {f.filamentColors.slice(0, 4).map((c, i) => (
+                          <span key={i} className="card-dot" style={{ background: c }} />
+                        ))}
+                      </span>
+                    )}
+                    {f.printSeconds != null && (
+                      <span className="card-time">{formatDuration(f.printSeconds)}</span>
+                    )}
                   </div>
                   <div className="card-name">{f.name}</div>
                 </button>

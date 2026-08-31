@@ -34,7 +34,14 @@ export const FORMAT_EXTENSIONS: Record<ModelFormat, string[]> = {
 
 export type ThumbStatus = 'pending' | 'ready' | 'failed' | 'none'
 
-export type ScanPhase = 'idle' | 'walking' | 'hashing' | 'thumbnails' | 'done' | 'error'
+export type ScanPhase =
+  | 'idle'
+  | 'walking'
+  | 'hashing'
+  | 'thumbnails'
+  | 'metadata'
+  | 'done'
+  | 'error'
 
 export interface ModelFile {
   id: number
@@ -56,6 +63,16 @@ export interface ModelFile {
   triCount: number | null
   /** Caja envolvente en unidades del archivo (mm normalmente); null si desconocida. */
   dim: [number, number, number] | null
+  /** Tiempo de impresión estimado en segundos (suma de todos los platos). null si no aplica. */
+  printSeconds: number | null
+  /** Gramos de filamento (suma de todos los platos). */
+  filamentG: number | null
+  /** Tipos de filamento distintos, p. ej. ['PLA', 'PETG']. */
+  filamentTypes: string[]
+  /** Colores de filamento distintos en hex, p. ej. ['#000000', '#FF8000']. */
+  filamentColors: string[]
+  /** Nº de platos del 3MF (null para gcode / sin datos). */
+  plateCount: number | null
 }
 
 /** Metadatos de malla calculados al renderizar la miniatura. */
@@ -88,6 +105,8 @@ export interface LibraryStats {
   byFormat: FormatCount[]
   pendingHash: number
   pendingThumb: number
+  /** Archivos 3MF/GCODE sin metadatos de impresión leídos aún. */
+  pendingMeta: number
   /** Nº de grupos de duplicados (mismo hash, >1 archivo). */
   duplicateGroups: number
   /** Nº de archivos que son copia redundante (total en grupos - 1 por grupo). */
@@ -96,7 +115,15 @@ export interface LibraryStats {
   wastedBytes: number
 }
 
-export type FileSort = 'recent' | 'oldest' | 'name' | 'size' | 'size-asc'
+export type FileSort =
+  | 'recent'
+  | 'oldest'
+  | 'name'
+  | 'size'
+  | 'size-asc'
+  | 'time'
+  | 'time-asc'
+  | 'grams'
 
 export type DateWindow = 'any' | '24h' | '7d' | '30d' | '365d'
 
