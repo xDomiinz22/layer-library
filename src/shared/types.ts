@@ -119,6 +119,57 @@ export interface FileDetail {
   rootPath: string
   /** Otros archivos con el mismo hash (sin incluir este). */
   duplicates: DuplicateSibling[]
+  /** Ids de colecciones a las que pertenece. */
+  collectionIds: number[]
+  /** true si está en la cola de impresión. */
+  inQueue: boolean
+}
+
+// --- Duplicados ------------------------------------------------------
+
+export interface DuplicateGroupMember {
+  id: number
+  path: string
+  relPath: string
+  rootId: number
+  rootLabel: string
+  mtimeMs: number
+}
+
+export interface DuplicateGroup {
+  hash: string
+  size: number
+  /** size * (count - 1) */
+  wasted: number
+  thumbFile: string | null
+  members: DuplicateGroupMember[]
+}
+
+// --- Colecciones ---------------------------------------------------
+
+export type CollectionKind = 'collection' | 'creator'
+
+export interface Collection {
+  id: number
+  name: string
+  kind: CollectionKind
+  fileCount: number
+}
+
+// --- Cola de impresión -------------------------------------------
+
+export interface Printer {
+  id: number
+  name: string
+}
+
+export interface QueueItem {
+  id: number
+  file: ModelFile
+  printerId: number | null
+  sort: number
+  printed: boolean
+  addedAt: number
 }
 
 /** Contrato del puente expuesto en window.api (ver preload). */
@@ -136,6 +187,30 @@ export interface LayerApi {
   revealInExplorer(path: string): Promise<void>
   openFile(path: string): Promise<void>
   copyText(text: string): Promise<void>
+  /** Mueve archivos a la papelera del sistema (pide confirmación al usuario). Devuelve cuántos se movieron. */
+  trashFiles(ids: number[]): Promise<number>
+
+  listDuplicateGroups(): Promise<DuplicateGroup[]>
+
+  listCollections(): Promise<Collection[]>
+  createCollection(name: string, kind: CollectionKind): Promise<Collection>
+  renameCollection(id: number, name: string): Promise<void>
+  deleteCollection(id: number): Promise<void>
+  setFileCollection(fileId: number, collectionId: number, member: boolean): Promise<void>
+  listCollectionFiles(collectionId: number): Promise<ModelFile[]>
+
+  listPrinters(): Promise<Printer[]>
+  createPrinter(name: string): Promise<Printer>
+  renamePrinter(id: number, name: string): Promise<void>
+  deletePrinter(id: number): Promise<void>
+  listQueue(): Promise<QueueItem[]>
+  addToQueue(fileId: number, printerId: number | null): Promise<void>
+  /** Añade si no está, quita si ya está. Devuelve el nuevo estado. */
+  toggleQueue(fileId: number): Promise<boolean>
+  removeFromQueue(itemId: number): Promise<void>
+  updateQueueItem(itemId: number, patch: { printerId?: number | null; printed?: boolean }): Promise<void>
+  moveQueueItem(itemId: number, direction: 'up' | 'down'): Promise<void>
+
   appVersion(): Promise<string>
   /** Eventos de progreso de escaneo/hashing. Devuelve función para desuscribir. */
   onScanProgress(cb: (p: ScanProgress) => void): () => void

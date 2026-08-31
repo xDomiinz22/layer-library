@@ -1,24 +1,38 @@
-import { useEffect, useState } from 'react'
-import type { FileDetail } from '@shared/types'
+import { useCallback, useEffect, useState } from 'react'
+import type { Collection, FileDetail } from '@shared/types'
 import { thumbUrl } from './ModelGrid'
 import { formatBytes, formatDims, formatTris, fullDate } from '../lib/format'
 
-export function DetailPanel({ fileId, onClose }: { fileId: number | null; onClose: () => void }) {
+export function DetailPanel({
+  fileId,
+  onClose,
+  onTrashed
+}: {
+  fileId: number | null
+  onClose: () => void
+  onTrashed: () => void
+}) {
   const [detail, setDetail] = useState<FileDetail | null>(null)
+  const [collections, setCollections] = useState<Collection[]>([])
   const [copied, setCopied] = useState(false)
+  const [showColl, setShowColl] = useState(false)
+
+  const load = useCallback(async () => {
+    if (fileId == null) return
+    const [d, c] = await Promise.all([
+      window.api.getFileDetail(fileId),
+      window.api.listCollections()
+    ])
+    setDetail(d)
+    setCollections(c)
+  }, [fileId])
 
   useEffect(() => {
-    if (fileId == null) return
-    let live = true
     setDetail(null)
     setCopied(false)
-    window.api.getFileDetail(fileId).then((d) => {
-      if (live) setDetail(d)
-    })
-    return () => {
-      live = false
-    }
-  }, [fileId])
+    setShowColl(false)
+    void load()
+  }, [fileId, load])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
@@ -36,6 +50,24 @@ export function DetailPanel({ fileId, onClose }: { fileId: number | null; onClos
     window.api.copyText(f.path)
     setCopied(true)
     setTimeout(() => setCopied(false), 1400)
+  }
+  const toggleQueue = async (): Promise<void> => {
+    if (!f) return
+    await window.api.toggleQueue(f.id)
+    await load()
+  }
+  const toggleColl = async (cid: number, member: boolean): Promise<void> => {
+    if (!f) return
+    await window.api.setFileCollection(f.id, cid, member)
+    await load()
+  }
+  const trash = async (): Promise<void> => {
+    if (!f) return
+    const n = await window.api.trashFiles([f.id])
+    if (n > 0) {
+      onClose()
+      onTrashed()
+    }
   }
 
   return (
@@ -85,9 +117,42 @@ export function DetailPanel({ fileId, onClose }: { fileId: number | null; onClos
             <button className="btn" onClick={() => window.api.revealInExplorer(f.path)}>
               Ver en carpeta
             </button>
+            <button className={`btn${detail.inQueue ? ' accent' : ''}`} onClick={toggleQueue}>
+              {detail.inQueue ? '✓ En cola' : '+ Cola'}
+            </button>
             <button className="btn ghost" onClick={copyPath}>
               {copied ? '¡Copiado!' : 'Copiar ruta'}
             </button>
+          </div>
+
+          <div className="detail-coll">
+            <button className="coll-toggle" onClick={() => setShowColl((s) => !s)}>
+              Colecciones {showColl ? '▲' : '▼'}
+              {detail.collectionIds.length > 0 && (
+                <span className="coll-badge">{detail.collectionIds.length}</span>
+              )}
+            </button>
+            {showColl && (
+              <div className="coll-checks">
+                {collections.length === 0 && (
+                  <div className="coll-empty">Aún no has creado ninguna.</div>
+                )}
+                {collections.map((c) => {
+                  const on = detail.collectionIds.includes(c.id)
+                  return (
+                    <label key={c.id} className="coll-check">
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        onChange={() => toggleColl(c.id, !on)}
+                      />
+                      {c.name}
+                      <span className="coll-kind">{c.kind === 'creator' ? 'creador' : ''}</span>
+                    </label>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
           {detail.duplicates.length > 0 && (
@@ -106,6 +171,10 @@ export function DetailPanel({ fileId, onClose }: { fileId: number | null; onClos
               ))}
             </div>
           )}
+
+          <button className="btn danger" onClick={trash}>
+            Mover a la papelera
+          </button>
         </div>
       )}
     </aside>

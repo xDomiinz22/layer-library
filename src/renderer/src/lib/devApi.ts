@@ -3,11 +3,14 @@
  * Solo se instala en desarrollo y cuando no existe el puente real.
  */
 import type {
+  Collection,
   FileDetail,
   LayerApi,
   LibraryRoot,
   ListFilesResult,
   ModelFile,
+  Printer,
+  QueueItem,
   ScanProgress
 } from '@shared/types'
 
@@ -99,6 +102,24 @@ export function installDevApi(): void {
   const files = mockFiles(37)
   const progressCbs: ((p: ScanProgress) => void)[] = []
 
+  const collections: Collection[] = [
+    { id: 1, name: 'Para regalar', kind: 'collection', fileCount: 0 },
+    { id: 2, name: 'Cults3D — Fotis', kind: 'creator', fileCount: 0 }
+  ]
+  let collId = 2
+  const collFiles: { fileId: number; cid: number }[] = []
+  const printers: Printer[] = [
+    { id: 1, name: 'Bambu A1' },
+    { id: 2, name: 'Ender 3' }
+  ]
+  let printerId = 2
+  const queue: QueueItem[] = []
+  let queueId = 0
+  const changeCbs: (() => void)[] = []
+  const fire = (): void => {
+    for (const cb of changeCbs.slice()) cb()
+  }
+
   setInterval(() => {
     const processed = Math.floor(Math.random() * 12000)
     for (const cb of progressCbs)
@@ -154,18 +175,150 @@ export function installDevApi(): void {
             ? [
                 { id: 999, path: 'E:\\backup\\copy.stl', relPath: 'backup/copy.stl', rootLabel: 'Disco E:' }
               ]
-            : []
+            : [],
+        collectionIds: collFiles.filter((cf) => cf.fileId === id).map((cf) => cf.cid),
+        inQueue: queue.some((q) => q.file.id === id)
       }
     },
     revealInExplorer: async () => {},
     openFile: async () => {},
     copyText: async (t) => navigator.clipboard?.writeText(t).catch(() => {}),
+    trashFiles: async (ids) => {
+      for (const id of ids) {
+        const i = files.findIndex((f) => f.id === id)
+        if (i >= 0) files.splice(i, 1)
+      }
+      return ids.length
+    },
+    listDuplicateGroups: async () => {
+      const groups = []
+      for (let i = 0; i + 1 < files.length && groups.length < 6; i += 2) {
+        const a = files[i]
+        const b = files[i + 1]
+        groups.push({
+          hash: 'h' + a.id,
+          size: a.size,
+          wasted: a.size,
+          thumbFile: a.thumbFile,
+          members: [
+            { id: a.id, path: a.path, relPath: a.relPath, rootId: 1, rootLabel: 'Descargas', mtimeMs: a.mtimeMs },
+            { id: b.id, path: b.path, relPath: 'copias/' + b.name, rootId: 3, rootLabel: 'Disco E:', mtimeMs: b.mtimeMs }
+          ]
+        })
+      }
+      return groups
+    },
+    listCollections: async () => collections.slice(),
+    createCollection: async (name, kind) => {
+      const c = { id: ++collId, name, kind, fileCount: 0 }
+      collections.push(c)
+      return c
+    },
+    renameCollection: async (id, name) => {
+      const c = collections.find((x) => x.id === id)
+      if (c) c.name = name
+    },
+    deleteCollection: async (id) => {
+      const i = collections.findIndex((x) => x.id === id)
+      if (i >= 0) collections.splice(i, 1)
+    },
+    setFileCollection: async (fileId, cid, member) => {
+      if (member) collFiles.push({ fileId, cid })
+      else {
+        const i = collFiles.findIndex((x) => x.fileId === fileId && x.cid === cid)
+        if (i >= 0) collFiles.splice(i, 1)
+      }
+      const c = collections.find((x) => x.id === cid)
+      if (c) c.fileCount = collFiles.filter((x) => x.cid === cid).length
+    },
+    listCollectionFiles: async (cid) =>
+      collFiles.filter((cf) => cf.cid === cid).map((cf) => files.find((f) => f.id === cf.fileId)!).filter(Boolean),
+    listPrinters: async () => printers.slice(),
+    createPrinter: async (name) => {
+      const p = { id: ++printerId, name }
+      printers.push(p)
+      return p
+    },
+    renamePrinter: async (id, name) => {
+      const p = printers.find((x) => x.id === id)
+      if (p) p.name = name
+    },
+    deletePrinter: async (id) => {
+      const i = printers.findIndex((x) => x.id === id)
+      if (i >= 0) printers.splice(i, 1)
+      queue.forEach((q) => {
+        if (q.printerId === id) q.printerId = null
+      })
+    },
+    listQueue: async () => queue.map((q) => ({ ...q })),
+    addToQueue: async (fileId, printerId) => {
+      if (!queue.some((q) => q.file.id === fileId)) {
+        const f = files.find((x) => x.id === fileId)
+        if (f) queue.push({ id: ++queueId, file: f, printerId, sort: queue.length, printed: false, addedAt: Date.now() })
+      }
+    },
+    toggleQueue: async (fileId) => {
+      const i = queue.findIndex((q) => q.file.id === fileId)
+      if (i >= 0) {
+        queue.splice(i, 1)
+        return false
+      }
+      const f = files.find((x) => x.id === fileId)
+      if (f) queue.push({ id: ++queueId, file: f, printerId: null, sort: queue.length, printed: false, addedAt: Date.now() })
+      return true
+    },
+    removeFromQueue: async (itemId) => {
+      const i = queue.findIndex((q) => q.id === itemId)
+      if (i >= 0) queue.splice(i, 1)
+    },
+    updateQueueItem: async (itemId, patch) => {
+      const q = queue.find((x) => x.id === itemId)
+      if (!q) return
+      if (patch.printerId !== undefined) q.printerId = patch.printerId
+      if (patch.printed !== undefined) q.printed = patch.printed
+    },
+    moveQueueItem: async (itemId, dir) => {
+      const i = queue.findIndex((q) => q.id === itemId)
+      const j = dir === 'up' ? i - 1 : i + 1
+      if (i >= 0 && j >= 0 && j < queue.length) {
+        ;[queue[i], queue[j]] = [queue[j], queue[i]]
+      }
+    },
     appVersion: async () => '0.0.0-dev',
     onScanProgress: (cb) => {
       progressCbs.push(cb)
       return () => progressCbs.splice(progressCbs.indexOf(cb), 1)
     },
-    onLibraryChanged: () => () => {}
+    onLibraryChanged: (cb) => {
+      changeCbs.push(cb)
+      return () => changeCbs.splice(changeCbs.indexOf(cb), 1)
+    }
   }
+
+  // Notifica cambios tras cualquier mutación (imita emitLibraryChanged del proceso principal).
+  for (const k of [
+    'trashFiles',
+    'createCollection',
+    'renameCollection',
+    'deleteCollection',
+    'setFileCollection',
+    'createPrinter',
+    'renamePrinter',
+    'deletePrinter',
+    'addToQueue',
+    'toggleQueue',
+    'removeFromQueue',
+    'updateQueueItem',
+    'moveQueueItem'
+  ] as const) {
+    const bag = api as unknown as Record<string, (...a: unknown[]) => Promise<unknown>>
+    const orig = bag[k]
+    bag[k] = async (...a: unknown[]) => {
+      const r = await orig(...a)
+      fire()
+      return r
+    }
+  }
+
   window.api = api
 }

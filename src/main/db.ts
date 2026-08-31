@@ -64,6 +64,33 @@ CREATE TRIGGER IF NOT EXISTS files_au AFTER UPDATE ON files BEGIN
   INSERT INTO files_fts(files_fts, rowid, name, rel_path) VALUES ('delete', old.id, old.name, old.rel_path);
   INSERT INTO files_fts(rowid, name, rel_path) VALUES (new.id, new.name, new.rel_path);
 END;
+
+CREATE TABLE IF NOT EXISTS collections (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  name       TEXT NOT NULL,
+  kind       TEXT NOT NULL DEFAULT 'collection',
+  created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS collection_files (
+  collection_id INTEGER NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+  file_id       INTEGER NOT NULL REFERENCES files(id) ON DELETE CASCADE,
+  PRIMARY KEY (collection_id, file_id)
+);
+
+CREATE TABLE IF NOT EXISTS printers (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  name       TEXT NOT NULL,
+  sort       REAL NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS queue_items (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  file_id    INTEGER NOT NULL UNIQUE REFERENCES files(id) ON DELETE CASCADE,
+  printer_id INTEGER REFERENCES printers(id) ON DELETE SET NULL,
+  sort       REAL NOT NULL,
+  printed    INTEGER NOT NULL DEFAULT 0,
+  added_at   INTEGER NOT NULL
+);
 `
 
 /** Migraciones aditivas idempotentes (ALTER TABLE ADD COLUMN lanza si ya existe). */
@@ -330,7 +357,7 @@ interface FileRow {
   dim_z: number | null
 }
 
-function rowToFile(r: FileRow): ModelFile {
+export function rowToFile(r: FileRow): ModelFile {
   return {
     id: r.id,
     rootId: r.root_id,
@@ -449,12 +476,39 @@ export function getFileDetail(id: number): FileDetail | null {
     ).map((x) => ({ ...x }))
   }
 
+  const collectionIds = (
+    d
+      .prepare('SELECT collection_id AS c FROM collection_files WHERE file_id = ?')
+      .all(id) as unknown as { c: number }[]
+  ).map((x) => x.c)
+  const inQueue =
+    (d.prepare('SELECT 1 FROM queue_items WHERE file_id = ?').get(id) as unknown) != null
+
   return {
     file: rowToFile(row),
     rootLabel: root?.label ?? '—',
     rootPath: root?.path ?? '',
-    duplicates
+    duplicates,
+    collectionIds,
+    inQueue
   }
+}
+
+// --- Acceso a archivos por id (para colecciones / cola) --------------
+
+export function getFileRowById(id: number): FileRow | undefined {
+  return getDb().prepare('SELECT * FROM files WHERE id = ?').get(id) as unknown as
+    | FileRow
+    | undefined
+}
+
+export function getFilesByIds(ids: number[]): ModelFile[] {
+  if (ids.length === 0) return []
+  const rows = getDb()
+    .prepare(`SELECT * FROM files WHERE id IN (${ids.map(() => '?').join(',')})`)
+    .all(...ids) as unknown as FileRow[]
+  const byId = new Map(rows.map((r) => [r.id, rowToFile(r)]))
+  return ids.map((i) => byId.get(i)).filter((x): x is ModelFile => x != null)
 }
 
 export function computeStats(): LibraryStats {

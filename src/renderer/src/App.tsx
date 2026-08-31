@@ -3,16 +3,30 @@ import type { LibraryRoot, LibraryStats, ModelFile, ScanProgress } from '@shared
 import { ModelGrid } from './components/ModelGrid'
 import { CARD_SIZES, DEFAULT_FILTERS, FilterBar, type Filters } from './components/FilterBar'
 import { DetailPanel } from './components/DetailPanel'
+import { DuplicatesView } from './components/DuplicatesView'
+import { QueueView } from './components/QueueView'
+import { CollectionsView } from './components/CollectionsView'
 import { formatBytes, formatCount, relativeTime } from './lib/format'
+
+type View = 'library' | 'duplicates' | 'queue' | 'collections'
+
+const NAV: { id: View; icon: string; label: string }[] = [
+  { id: 'library', icon: '▦', label: 'Biblioteca' },
+  { id: 'duplicates', icon: '⧉', label: 'Duplicados' },
+  { id: 'queue', icon: '★', label: 'Cola' },
+  { id: 'collections', icon: '❏', label: 'Colecciones' }
+]
 
 export function App() {
   const [roots, setRoots] = useState<LibraryRoot[]>([])
   const [stats, setStats] = useState<LibraryStats | null>(null)
+  const [queueCount, setQueueCount] = useState(0)
   const [files, setFiles] = useState<ModelFile[]>([])
   const [fileTotal, setFileTotal] = useState(0)
   const [progress, setProgress] = useState<ScanProgress | null>(null)
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
+  const [view, setView] = useState<View>('library')
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [version, setVersion] = useState('')
@@ -36,14 +50,17 @@ export function App() {
     setFileTotal(res.total)
   }, [])
 
-  const refreshAll = useCallback(async () => {
+  const refreshMeta = useCallback(async () => {
     await Promise.all([
-      refreshRoots(),
       window.api.getStats().then(setStats),
-      refreshFiles()
+      window.api.listQueue().then((q) => setQueueCount(q.length))
     ])
+  }, [])
+
+  const refreshAll = useCallback(async () => {
+    await Promise.all([refreshRoots(), refreshMeta(), refreshFiles()])
     setLoading(false)
-  }, [refreshRoots, refreshFiles])
+  }, [refreshRoots, refreshMeta, refreshFiles])
 
   useEffect(() => {
     void refreshAll()
@@ -54,7 +71,7 @@ export function App() {
       if (t) clearTimeout(t)
       t = setTimeout(() => {
         void refreshRoots()
-        void window.api.getStats().then(setStats)
+        void refreshMeta()
         void refreshFiles()
       }, 300)
     })
@@ -67,9 +84,8 @@ export function App() {
       offProgress()
       if (t) clearTimeout(t)
     }
-  }, [refreshAll, refreshRoots, refreshFiles])
+  }, [refreshAll, refreshRoots, refreshMeta, refreshFiles])
 
-  // Recarga la lista al cambiar búsqueda o filtros (con debounce en la búsqueda).
   useEffect(() => {
     const t = setTimeout(() => void refreshFiles(), 180)
     return () => clearTimeout(t)
@@ -132,6 +148,9 @@ export function App() {
     filters.dateWindow !== 'any' ||
     filters.onlyDuplicates
 
+  const navBadge = (id: View): number =>
+    id === 'duplicates' ? (stats?.duplicateGroups ?? 0) : id === 'queue' ? queueCount : 0
+
   return (
     <div className={`app${selectedId != null ? ' with-detail' : ''}`}>
       <aside className="sidebar">
@@ -139,6 +158,23 @@ export function App() {
           <span className="mark">L</span>
           Layer Library
         </div>
+
+        <nav className="nav">
+          {NAV.map((n) => {
+            const b = navBadge(n.id)
+            return (
+              <button
+                key={n.id}
+                className={`nav-item${view === n.id ? ' on' : ''}`}
+                onClick={() => setView(n.id)}
+              >
+                <span className="nav-icon">{n.icon}</span>
+                {n.label}
+                {b > 0 && <span className="nav-badge">{b}</span>}
+              </button>
+            )
+          })}
+        </nav>
 
         <div className="side-section">
           <span>Bibliotecas</span>
@@ -185,19 +221,23 @@ export function App() {
 
       <main className="main">
         <div className="topbar">
-          <div className="search">
-            <span>⌕</span>
-            <input
-              placeholder="Buscar en la biblioteca…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            {query && (
-              <button className="search-clear" onClick={() => setQuery('')} title="Limpiar">
-                ✕
-              </button>
-            )}
-          </div>
+          {view === 'library' ? (
+            <div className="search">
+              <span>⌕</span>
+              <input
+                placeholder="Buscar en la biblioteca…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              {query && (
+                <button className="search-clear" onClick={() => setQuery('')} title="Limpiar">
+                  ✕
+                </button>
+              )}
+            </div>
+          ) : (
+            <span className="topbar-title">{NAV.find((n) => n.id === view)?.label}</span>
+          )}
           <div className="topbar-right">
             {working ? (
               <span className="pill live">
@@ -205,7 +245,8 @@ export function App() {
                 {progress?.message ?? 'Trabajando…'}
               </span>
             ) : (
-              roots.length > 0 && (
+              roots.length > 0 &&
+              view === 'library' && (
                 <button
                   className="btn ghost"
                   onClick={() => window.api.rescanAll()}
@@ -243,6 +284,16 @@ export function App() {
               <div className="hint">Nada sale de tu equipo. No se mueven ni renombran archivos.</div>
             </div>
           </div>
+        ) : view === 'duplicates' ? (
+          <DuplicatesView />
+        ) : view === 'queue' ? (
+          <QueueView onSelect={setSelectedId} />
+        ) : view === 'collections' ? (
+          <CollectionsView
+            cardSize={cardSize}
+            selectedFileId={selectedId}
+            onSelectFile={setSelectedId}
+          />
         ) : (
           <>
             <div className="stat-strip">
@@ -305,7 +356,11 @@ export function App() {
         )}
       </main>
 
-      <DetailPanel fileId={selectedId} onClose={() => setSelectedId(null)} />
+      <DetailPanel
+        fileId={selectedId}
+        onClose={() => setSelectedId(null)}
+        onTrashed={refreshAll}
+      />
     </div>
   )
 }
