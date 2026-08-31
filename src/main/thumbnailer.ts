@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import { existsSync } from 'node:fs'
 import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { app, BrowserWindow, ipcMain } from 'electron'
+import { open } from 'node:fs/promises'
 import {
   findThumbByHash,
   getDb,
@@ -20,8 +21,30 @@ interface RenderResult {
   meta: MeshMeta | null
 }
 
-const MAX_BYTES = 220 * 1024 * 1024
+/** Tope para el render 3D (STL/OBJ/3MF sin miniatura). */
+const MAX_RENDER_BYTES = 220 * 1024 * 1024
+/** Tope para descomprimir un 3MF y sacar su PNG embebida. */
+const MAX_ZIP_BYTES = 2 * 1024 * 1024 * 1024
 const JOB_TIMEOUT = 25_000
+
+/** Lee los primeros y últimos `n` bytes de un archivo (para buscar miniaturas en G-code grandes). */
+async function readHeadTail(path: string, n: number, size: number): Promise<Buffer> {
+  const fh = await open(path, 'r')
+  try {
+    if (size <= n * 2) {
+      const b = Buffer.alloc(size)
+      await fh.read(b, 0, size, 0)
+      return b
+    }
+    const head = Buffer.alloc(n)
+    const tail = Buffer.alloc(n)
+    await fh.read(head, 0, n, 0)
+    await fh.read(tail, 0, n, size - n)
+    return Buffer.concat([head, tail])
+  } finally {
+    await fh.close()
+  }
+}
 
 function thumbDir(): string {
   return join(app.getPath('userData'), 'thumbnails')
@@ -180,39 +203,53 @@ async function processOne(f: PendingThumb): Promise<void> {
     setThumbResult(f.id, 'failed', null)
     return
   }
-  if (st.size > MAX_BYTES) {
-    setThumbResultByHash(f.hash, 'failed', null)
-    return
-  }
 
-  const raw = await readFile(f.path)
-
-  // Formatos con miniatura embebida por el slicer: extraer sin renderizar.
-  if (f.format === '3mf') {
-    const png = extract3mfThumbnail(raw)
-    if (png) {
-      await writeFile(cachePath, png)
-      setThumbResultByHash(f.hash, 'ready', cacheName)
-      return
-    }
-  }
-  if (f.format === 'gcode') {
-    const png = extractGcodeThumbnail(raw)
-    if (png) {
-      await writeFile(cachePath, png)
-      setThumbResultByHash(f.hash, 'ready', cacheName)
-    } else {
-      // Sin miniatura embebida y no renderizamos toolpaths: se deja sin preview.
-      setThumbResultByHash(f.hash, 'failed', null)
-    }
-    return
-  }
   // STEP: se indexa pero no se genera vista previa (requiere kernel CAD).
   if (f.format === 'step') {
     setThumbResultByHash(f.hash, 'failed', null)
     return
   }
 
+  // G-code: solo miniatura embebida por el slicer (no renderizamos toolpaths).
+  // El tamaño no importa: leemos solo cabecera y cola.
+  if (f.format === 'gcode') {
+    try {
+      const png = extractGcodeThumbnail(await readHeadTail(f.path, 1_500_000, st.size))
+      if (png) {
+        await writeFile(cachePath, png)
+        setThumbResultByHash(f.hash, 'ready', cacheName)
+      } else {
+        setThumbResultByHash(f.hash, 'failed', null)
+      }
+    } catch {
+      setThumbResultByHash(f.hash, 'failed', null)
+    }
+    return
+  }
+
+  // 3MF: la miniatura embebida del slicer se extrae SIN límite de tamaño
+  // (descomprimir solo el PNG de un zip enorme es barato). El render 3D sí tiene tope.
+  if (f.format === '3mf') {
+    if (st.size <= MAX_ZIP_BYTES) {
+      try {
+        const png = extract3mfThumbnail(await readFile(f.path))
+        if (png) {
+          await writeFile(cachePath, png)
+          setThumbResultByHash(f.hash, 'ready', cacheName)
+          return
+        }
+      } catch {
+        /* zip corrupto o sin memoria: cae al render si cabe */
+      }
+    }
+  }
+
+  if (st.size > MAX_RENDER_BYTES) {
+    setThumbResultByHash(f.hash, 'failed', null)
+    return
+  }
+
+  const raw = await readFile(f.path)
   const ab = raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength)
   try {
     const { png, meta } = await renderInWindow(f, ab, st.size)

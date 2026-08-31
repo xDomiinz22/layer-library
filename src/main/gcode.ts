@@ -9,10 +9,8 @@
  * Devuelve la mayor encontrada, o null.
  */
 export function extractGcodeThumbnail(buf: Uint8Array): Uint8Array | null {
-  // Basta con el principio y el final del archivo: los slicers ponen las
-  // miniaturas en la cabecera o justo antes del footer.
-  const head = buf.subarray(0, Math.min(buf.length, 600_000))
-  const text = Buffer.from(head).toString('latin1')
+  // `buf` ya viene recortado (cabecera + cola) por el llamador.
+  const text = Buffer.from(buf).toString('latin1')
 
   const re = /;\s*thumbnail(?:_[A-Z]+)?\s+begin[^\n]*\n([\s\S]*?);\s*thumbnail(?:_[A-Z]+)?\s+end/gi
   let best: Uint8Array | null = null
