@@ -16,10 +16,20 @@ búsqueda instantánea, detección de duplicados y cola de impresión. Inspirada
 
 ```bash
 npm install
-npm run dev
+npm run dev          # app con HMR
+npm run dist         # instalador NSIS -> dist/Layer Library-<v>-setup.exe
 ```
 
 Sin dependencias nativas: no hace falta toolchain de C++.
+
+## Formatos
+
+| Formato | Indexado | Miniatura |
+|---|---|---|
+| STL, OBJ | ✅ | render Three.js |
+| 3MF | ✅ | PNG embebida del slicer (si no, render) |
+| GCODE | ✅ | PNG embebida del slicer |
+| STEP / STP | ✅ | — (sin kernel CAD) |
 
 ## Estructura
 
@@ -38,5 +48,5 @@ src/
 - [x] **Fase 2** — Miniaturas: PNG embebido de 3MF + render STL/3MF con Three.js, cola en segundo plano, grid de tarjetas
 - [x] **Fase 3** — Cuadrícula virtualizada, filtros (formato/biblioteca/fecha/duplicados), panel de detalle con metadatos de malla
 - [x] **Fase 4** — Vista de duplicados + borrado a Papelera, cola de impresión por impresora, colecciones/creadores
-- [ ] **Fase 5** — OBJ/STEP/GCODE, empaquetado `electron-builder`, temas
+- [x] **Fase 5** — OBJ (render) · GCODE (miniatura embebida) · STEP (indexado), limpieza de caché, icono, instalador NSIS (`npm run dist`)
 ```
