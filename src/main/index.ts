@@ -1,6 +1,8 @@
 import { basename, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { app, BrowserWindow, net, protocol, shell } from 'electron'
+import { app, BrowserWindow, nativeImage, net, protocol, shell } from 'electron'
+import iconIco from '../../build/icon.ico?asset'
+import iconPng from '../../build/icon.png?asset'
 import { initDb } from './db'
 import { registerIpc } from './ipc'
 import { scanAll } from './scanner'
@@ -8,6 +10,9 @@ import { pruneThumbnailCache, thumbFilePath } from './thumbnailer'
 import { closeWatchers, syncWatchers } from './watcher'
 
 const isDev = !app.isPackaged
+const appIcon = nativeImage.createFromPath(process.platform === 'win32' ? iconIco : iconPng)
+
+if (process.platform === 'win32') app.setAppUserModelId('app.layerlibrary.desktop')
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -40,6 +45,7 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     title: 'Layer Library',
+    icon: appIcon,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
