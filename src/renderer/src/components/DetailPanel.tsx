@@ -166,12 +166,12 @@ export function DetailPanel({
                     </dd>
                   </>
                 )}
-                {f.filamentG != null && (
+                {(f.filamentG != null || f.filamentTypes.length > 0) && (
                   <>
                     <dt>Filamento</dt>
                     <dd>
-                      {formatGrams(f.filamentG)}
-                      {f.filamentTypes.length > 0 && (
+                      {f.filamentG != null ? formatGrams(f.filamentG) : f.filamentTypes.join(', ')}
+                      {f.filamentG != null && f.filamentTypes.length > 0 && (
                         <span className="kv-note"> · {f.filamentTypes.join(', ')}</span>
                       )}
                     </dd>
