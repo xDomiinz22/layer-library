@@ -237,6 +237,61 @@ export function countPendingHash(): number {
   ).n
 }
 
+// --- Miniaturas --------------------------------------------------------
+
+export interface PendingThumb {
+  id: number
+  path: string
+  format: ModelFormat
+  hash: string
+}
+
+export function selectPendingThumbFiles(limit = 100000): PendingThumb[] {
+  return getDb()
+    .prepare(
+      `SELECT id, path, format, hash FROM files
+       WHERE thumb_status = 'pending' AND hash IS NOT NULL
+       ORDER BY mtime_ms DESC
+       LIMIT ?`
+    )
+    .all(limit) as unknown as PendingThumb[]
+}
+
+export function countPendingThumb(): number {
+  return (
+    getDb()
+      .prepare("SELECT COUNT(*) AS n FROM files WHERE thumb_status = 'pending' AND hash IS NOT NULL")
+      .get() as unknown as { n: number }
+  ).n
+}
+
+/** Miniatura ya lista para un hash concreto (para reutilizar entre duplicados). */
+export function findThumbByHash(hash: string): string | null {
+  const row = getDb()
+    .prepare(
+      "SELECT thumb_file FROM files WHERE hash = ? AND thumb_status = 'ready' AND thumb_file IS NOT NULL LIMIT 1"
+    )
+    .get(hash) as unknown as { thumb_file: string } | undefined
+  return row?.thumb_file ?? null
+}
+
+/** Marca el resultado para TODOS los archivos pendientes con ese hash. */
+export function setThumbResultByHash(
+  hash: string,
+  status: 'ready' | 'failed',
+  file: string | null
+): void {
+  getDb()
+    .prepare(
+      "UPDATE files SET thumb_status = ?, thumb_file = ? WHERE hash = ? AND thumb_status IN ('pending','failed')"
+    )
+    .run(status, file, hash)
+}
+
+export function setThumbResult(id: number, status: 'ready' | 'failed', file: string | null): void {
+  getDb().prepare('UPDATE files SET thumb_status = ?, thumb_file = ? WHERE id = ?').run(status, file, id)
+}
+
 // --- Files: lectura / stats -------------------------------------------
 
 interface FileRow {

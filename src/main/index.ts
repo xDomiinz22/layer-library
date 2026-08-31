@@ -1,11 +1,34 @@
-import { join } from 'node:path'
-import { app, BrowserWindow, shell } from 'electron'
+import { basename, join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { app, BrowserWindow, net, protocol, shell } from 'electron'
 import { initDb } from './db'
 import { registerIpc } from './ipc'
 import { scanAll } from './scanner'
+import { thumbFilePath } from './thumbnailer'
 import { closeWatchers, syncWatchers } from './watcher'
 
 const isDev = !app.isPackaged
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'thumb',
+    privileges: { standard: true, secure: true, supportFetchAPI: true }
+  }
+])
+
+function registerThumbProtocol(): void {
+  protocol.handle('thumb', async (request) => {
+    let name: string
+    try {
+      name = decodeURIComponent(new URL(request.url).pathname).replace(/^\/+/, '')
+    } catch {
+      return new Response(null, { status: 400 })
+    }
+    const safe = basename(name)
+    if (!/^[a-f0-9]{16,64}\.png$/i.test(safe)) return new Response(null, { status: 404 })
+    return net.fetch(pathToFileURL(thumbFilePath(safe)).toString())
+  })
+}
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -39,6 +62,7 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   initDb()
+  registerThumbProtocol()
   registerIpc()
   createWindow()
 

@@ -618,3 +618,141 @@ button {
   padding: 4px 8px;
   font-size: 13px;
 }
+
+/* ---- List tools / size toggle ------------------------------------ */
+
+.list-tools {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.size-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.size-toggle button {
+  padding: 4px 9px;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--text-faint);
+  background: var(--bg-elev);
+}
+
+.size-toggle button:hover {
+  color: var(--text);
+}
+
+.size-toggle button.on {
+  background: var(--accent);
+  color: #1a1206;
+}
+
+/* ---- Model grid ------------------------------------------------- */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--card, 168px), 1fr));
+  gap: 14px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+  text-align: left;
+  border-radius: 10px;
+}
+
+.card-thumb {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-soft);
+  transition: border-color 0.12s, transform 0.12s;
+}
+
+.card:hover .card-thumb {
+  border-color: #3a4150;
+  transform: translateY(-2px);
+}
+
+.card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.card-img.placeholder {
+  display: grid;
+  place-items: center;
+  position: relative;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--bg-elev),
+    var(--bg-elev) 8px,
+    var(--bg-elev-2) 8px,
+    var(--bg-elev-2) 16px
+  );
+}
+
+.ph-glyph {
+  font-size: 34px;
+  color: var(--text-faint);
+  opacity: 0.5;
+}
+
+.shimmer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, #ffffff14, transparent);
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.card-fmt {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  font-size: 9.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+.card-name {
+  font-size: 12.5px;
+  font-weight: 550;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 2px;
+}
+
+.card-meta {
+  font-size: 11px;
+  color: var(--text-faint);
+  padding: 0 2px;
+}

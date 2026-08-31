@@ -15,7 +15,10 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
     build: {
       rollupOptions: {
-        input: { index: resolve('src/preload/index.ts') }
+        input: {
+          index: resolve('src/preload/index.ts'),
+          thumber: resolve('src/preload/thumber.ts')
+        }
       }
     }
   },
@@ -29,7 +32,10 @@ export default defineConfig({
     },
     build: {
       rollupOptions: {
-        input: { index: resolve('src/renderer/index.html') }
+        input: {
+          index: resolve('src/renderer/index.html'),
+          thumber: resolve('src/renderer/thumber.html')
+        }
       }
     },
     plugins: [react()]

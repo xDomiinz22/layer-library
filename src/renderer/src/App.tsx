@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { LibraryRoot, LibraryStats, ModelFile, ScanProgress } from '@shared/types'
-import { FileList } from './components/FileList'
+import { ModelGrid } from './components/ModelGrid'
 import { formatBytes, formatCount, relativeTime } from './lib/format'
+
+const CARD_SIZES = [132, 168, 216]
 
 export function App() {
   const [roots, setRoots] = useState<LibraryRoot[]>([])
@@ -13,6 +15,10 @@ export function App() {
   const [loading, setLoading] = useState(true)
   const [version, setVersion] = useState('')
   const [busy, setBusy] = useState(false)
+  const [cardSize, setCardSize] = useState(() => {
+    const v = Number(localStorage.getItem('cardSize'))
+    return CARD_SIZES.includes(v) ? v : CARD_SIZES[1]
+  })
 
   const queryRef = useRef(query)
   queryRef.current = query
@@ -103,11 +109,21 @@ export function App() {
     await window.api.rescanAll()
   }, [])
 
+  useEffect(() => {
+    try {
+      localStorage.setItem('cardSize', String(cardSize))
+    } catch {
+      /* modo restringido */
+    }
+  }, [cardSize])
+
   const onlineCount = roots.filter((r) => r.online).length
-  const scanning =
-    roots.some((r) => r.scanState === 'walking') ||
-    (progress != null && (progress.phase === 'walking' || progress.phase === 'hashing'))
-  const hashing = progress?.phase === 'hashing' || (stats != null && stats.pendingHash > 0)
+  const walking = roots.some((r) => r.scanState === 'walking') || progress?.phase === 'walking'
+  const working =
+    walking ||
+    progress?.phase === 'hashing' ||
+    progress?.phase === 'thumbnails' ||
+    (stats != null && (stats.pendingHash > 0 || stats.pendingThumb > 0))
 
   const pct =
     progress && progress.total > 0
@@ -181,10 +197,10 @@ export function App() {
             />
           </div>
           <div className="topbar-right">
-            {scanning ? (
+            {working ? (
               <span className="pill live">
                 <span className="spinner" />
-                {progress?.message ?? 'Escaneando…'}
+                {progress?.message ?? 'Trabajando…'}
               </span>
             ) : (
               roots.length > 0 && (
@@ -196,11 +212,11 @@ export function App() {
           </div>
         </div>
 
-        {(scanning || (hashing && pct !== null)) && (
+        {working && (
           <div className="progressbar">
             <div
               className="progressbar-fill"
-              style={{ transform: `scaleX(${(pct ?? 15) / 100})` }}
+              style={{ transform: `scaleX(${(pct ?? 12) / 100})` }}
             />
           </div>
         )}
@@ -250,10 +266,14 @@ export function App() {
                   </div>
                   <div className="l">duplicados</div>
                 </div>
-                {stats != null && stats.pendingHash > 0 && (
+                {stats != null && (stats.pendingHash > 0 || stats.pendingThumb > 0) && (
                   <div className="stat muted">
-                    <div className="n">{formatCount(stats.pendingHash)}</div>
-                    <div className="l">sin huella</div>
+                    <div className="n">
+                      {formatCount(Math.max(stats.pendingHash, stats.pendingThumb))}
+                    </div>
+                    <div className="l">
+                      {stats.pendingThumb > 0 ? 'sin miniatura' : 'sin huella'}
+                    </div>
                   </div>
                 )}
               </div>
@@ -264,15 +284,30 @@ export function App() {
                     ? `${formatCount(fileTotal)} resultado${fileTotal === 1 ? '' : 's'}`
                     : 'Archivos recientes'}
                 </h2>
-                <span className="list-sub">
-                  {onlineCount}/{roots.length} bibliotecas en línea · último escaneo{' '}
-                  {relativeTime(
-                    roots.reduce<number | null>(
-                      (acc, r) => (r.lastScanAt && (!acc || r.lastScanAt > acc) ? r.lastScanAt : acc),
-                      null
-                    )
-                  )}
-                </span>
+                <div className="list-tools">
+                  <span className="list-sub">
+                    {onlineCount}/{roots.length} en línea · escaneo{' '}
+                    {relativeTime(
+                      roots.reduce<number | null>(
+                        (acc, r) =>
+                          r.lastScanAt && (!acc || r.lastScanAt > acc) ? r.lastScanAt : acc,
+                        null
+                      )
+                    )}
+                  </span>
+                  <div className="size-toggle">
+                    {CARD_SIZES.map((s, i) => (
+                      <button
+                        key={s}
+                        className={s === cardSize ? 'on' : ''}
+                        onClick={() => setCardSize(s)}
+                        title={['Pequeño', 'Mediano', 'Grande'][i]}
+                      >
+                        {['S', 'M', 'L'][i]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               {files.length === 0 ? (
@@ -281,13 +316,17 @@ export function App() {
                     ? 'Cargando…'
                     : query
                       ? 'Ningún archivo coincide con el filtro.'
-                      : scanning
+                      : walking
                         ? 'Escaneando… los archivos aparecerán aquí.'
                         : 'No se han encontrado archivos STL ni 3MF en estas carpetas.'}
                 </div>
               ) : (
                 <>
-                  <FileList files={files} />
+                  <ModelGrid
+                    files={files}
+                    size={cardSize}
+                    onOpen={(f) => window.api.revealInExplorer(f.path)}
+                  />
                   {fileTotal > files.length && (
                     <div className="list-more">
                       Mostrando {formatCount(files.length)} de {formatCount(fileTotal)}. El

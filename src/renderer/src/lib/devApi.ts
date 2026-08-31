@@ -61,10 +61,19 @@ const NAMES = [
   'castle_keep'
 ]
 
+const HUES = [22, 210, 265, 140, 45]
+function fakeThumb(i: number): string {
+  const h = HUES[i % HUES.length]
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${h} 55% 62%)"/><stop offset="1" stop-color="hsl(${h} 45% 38%)"/></linearGradient></defs><rect width="200" height="200" fill="hsl(${h} 20% 14%)"/><circle cx="100" cy="105" r="${45 + (i % 5) * 8}" fill="url(#g)"/><rect x="60" y="150" width="80" height="10" rx="3" fill="hsl(${h} 30% 24%)"/></svg>`
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`
+}
+
 function mockFiles(n: number): ModelFile[] {
   return Array.from({ length: n }, (_, i) => {
     const name = NAMES[i % NAMES.length]
     const fmt = i % 3 === 0 ? '3mf' : 'stl'
+    const status: ModelFile['thumbStatus'] =
+      i % 7 === 3 ? 'pending' : i % 11 === 5 ? 'failed' : 'ready'
     return {
       id: i + 1,
       rootId: 1,
@@ -75,8 +84,8 @@ function mockFiles(n: number): ModelFile[] {
       size: 1_200_000 + i * 350_000,
       mtimeMs: Date.now() - i * 3.6e6,
       hash: i % 4 === 0 ? null : `deadbeef${i}`,
-      thumbStatus: 'pending',
-      thumbFile: null,
+      thumbStatus: status,
+      thumbFile: status === 'ready' ? fakeThumb(i) : null,
       addedAt: Date.now() - i * 3.6e6
     } as ModelFile
   })

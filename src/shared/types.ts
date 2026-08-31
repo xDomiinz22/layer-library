@@ -24,7 +24,7 @@ export const SCANNED_FORMATS: ModelFormat[] = ['stl', '3mf']
 
 export type ThumbStatus = 'pending' | 'ready' | 'failed' | 'none'
 
-export type ScanPhase = 'idle' | 'walking' | 'hashing' | 'done' | 'error'
+export type ScanPhase = 'idle' | 'walking' | 'hashing' | 'thumbnails' | 'done' | 'error'
 
 export interface ModelFile {
   id: number

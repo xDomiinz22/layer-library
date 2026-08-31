@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { createReadStream } from 'node:fs'
 import { countPendingHash, selectPendingHashFiles, setFileHash } from './db'
 import { emitLibraryChanged, emitScanProgress } from './emit'
+import { thumbnailPending } from './thumbnailer'
 
 const CONCURRENCY = 4
 
@@ -70,14 +71,10 @@ export async function hashPending(): Promise<void> {
     running = false
   }
 
-  emitScanProgress({
-    rootId: null,
-    phase: 'done',
-    discovered: 0,
-    processed: 0,
-    total: 0
-  })
   emitLibraryChanged()
+
+  // Encadena la generación de miniaturas.
+  void thumbnailPending()
 }
 
 export function pendingHashCount(): number {
