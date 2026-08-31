@@ -35,7 +35,7 @@ src/
 
 - [x] **Fase 0** — Scaffold, ventana, DB, alta/baja de carpetas raíz (locales, externas, red)
 - [x] **Fase 1** — Escaneo recursivo STL/3MF, indexado incremental, hashing (sha256), watch en vivo
-- [ ] **Fase 2** — Miniaturas: PNG embebido de 3MF + render MatCap de STL, cola en segundo plano
+- [x] **Fase 2** — Miniaturas: PNG embebido de 3MF + render STL/3MF con Three.js, cola en segundo plano, grid de tarjetas
 - [ ] **Fase 3** — Cuadrícula virtualizada, búsqueda FTS, filtros, panel de detalle
 - [ ] **Fase 4** — Duplicados por hash, cola de impresión, colecciones/creadores
 - [ ] **Fase 5** — OBJ/STEP/GCODE, empaquetado `electron-builder`, temas
