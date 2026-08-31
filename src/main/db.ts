@@ -1,7 +1,17 @@
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { app } from 'electron'
-import type { LibraryRoot, RootKind } from '../shared/types'
+import type {
+  FileSort,
+  LibraryRoot,
+  LibraryStats,
+  ListFilesOptions,
+  ListFilesResult,
+  ModelFile,
+  ModelFormat,
+  RootKind,
+  ScanPhase
+} from '../shared/types'
 
 let db: DatabaseSync
 
@@ -27,11 +37,13 @@ CREATE TABLE IF NOT EXISTS files (
   hash         TEXT,
   thumb_status TEXT NOT NULL DEFAULT 'pending',
   thumb_file   TEXT,
+  scan_gen     INTEGER,
   added_at     INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_files_root ON files(root_id);
 CREATE INDEX IF NOT EXISTS idx_files_hash ON files(hash);
 CREATE INDEX IF NOT EXISTS idx_files_format ON files(format);
+CREATE INDEX IF NOT EXISTS idx_files_mtime ON files(mtime_ms);
 
 CREATE VIRTUAL TABLE IF NOT EXISTS files_fts USING fts5(
   name, rel_path,
@@ -51,12 +63,25 @@ CREATE TRIGGER IF NOT EXISTS files_au AFTER UPDATE ON files BEGIN
 END;
 `
 
+/** Migraciones aditivas idempotentes (ALTER TABLE ADD COLUMN lanza si ya existe). */
+function migrate(d: DatabaseSync): void {
+  const add = (sql: string): void => {
+    try {
+      d.exec(sql)
+    } catch {
+      /* columna ya existente */
+    }
+  }
+  add('ALTER TABLE files ADD COLUMN scan_gen INTEGER')
+}
+
 export function initDb(): DatabaseSync {
   const file = join(app.getPath('userData'), 'library.db')
   db = new DatabaseSync(file)
   db.exec('PRAGMA journal_mode = WAL')
   db.exec('PRAGMA foreign_keys = ON')
   db.exec(SCHEMA)
+  migrate(db)
   return db
 }
 
@@ -65,7 +90,7 @@ export function getDb(): DatabaseSync {
   return db
 }
 
-// --- Roots -----------------------------------------------------------------
+// --- Roots ---------------------------------------------------------------
 
 interface RootRow {
   id: number
@@ -76,7 +101,12 @@ interface RootRow {
   last_scan_at: number | null
 }
 
-function rowToRoot(r: RootRow, online: boolean, fileCount: number): LibraryRoot {
+function rowToRoot(
+  r: RootRow,
+  online: boolean,
+  fileCount: number,
+  scanState: ScanPhase
+): LibraryRoot {
   return {
     id: r.id,
     path: r.path,
@@ -85,7 +115,8 @@ function rowToRoot(r: RootRow, online: boolean, fileCount: number): LibraryRoot 
     online,
     addedAt: r.added_at,
     lastScanAt: r.last_scan_at,
-    fileCount
+    fileCount,
+    scanState
   }
 }
 
@@ -104,12 +135,18 @@ export function updateRootLabel(id: number, label: string): void {
   getDb().prepare('UPDATE roots SET label = ? WHERE id = ?').run(label, id)
 }
 
+export function touchRootScan(id: number): void {
+  getDb().prepare('UPDATE roots SET last_scan_at = ? WHERE id = ?').run(Date.now(), id)
+}
+
 export function selectRootRows(): RootRow[] {
   return getDb().prepare('SELECT * FROM roots ORDER BY added_at ASC').all() as unknown as RootRow[]
 }
 
 export function selectRootRow(id: number): RootRow | undefined {
-  return getDb().prepare('SELECT * FROM roots WHERE id = ?').get(id) as unknown as RootRow | undefined
+  return getDb().prepare('SELECT * FROM roots WHERE id = ?').get(id) as unknown as
+    | RootRow
+    | undefined
 }
 
 export function countFilesByRoot(rootId: number): number {
@@ -117,6 +154,219 @@ export function countFilesByRoot(rootId: number): number {
     .prepare('SELECT COUNT(*) AS n FROM files WHERE root_id = ?')
     .get(rootId) as unknown as { n: number }
   return row.n
+}
+
+// --- Files: escritura ----------------------------------------------------
+
+export interface WalkedFile {
+  path: string
+  relPath: string
+  name: string
+  format: ModelFormat
+  size: number
+  mtimeMs: number
+}
+
+/**
+ * Inserta o actualiza un archivo. Si es nuevo o cambió (tamaño/mtime), resetea
+ * hash y estado de miniatura. Siempre marca la generación de escaneo actual.
+ * Devuelve true si el archivo es nuevo o ha cambiado.
+ */
+export function upsertFile(rootId: number, f: WalkedFile, gen: number): boolean {
+  const existing = getDb()
+    .prepare('SELECT id, size, mtime_ms FROM files WHERE path = ?')
+    .get(f.path) as unknown as { id: number; size: number; mtime_ms: number } | undefined
+
+  if (!existing) {
+    getDb()
+      .prepare(
+        `INSERT INTO files (root_id, path, rel_path, name, format, size, mtime_ms, hash, thumb_status, scan_gen, added_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, NULL, 'pending', ?, ?)`
+      )
+      .run(rootId, f.path, f.relPath, f.name, f.format, f.size, Math.round(f.mtimeMs), gen, Date.now())
+    return true
+  }
+
+  const changed = existing.size !== f.size || Math.round(existing.mtime_ms) !== Math.round(f.mtimeMs)
+  if (changed) {
+    getDb()
+      .prepare(
+        `UPDATE files SET rel_path = ?, name = ?, format = ?, size = ?, mtime_ms = ?,
+           hash = NULL, thumb_status = 'pending', thumb_file = NULL, scan_gen = ?
+         WHERE id = ?`
+      )
+      .run(f.relPath, f.name, f.format, f.size, Math.round(f.mtimeMs), gen, existing.id)
+  } else {
+    getDb().prepare('UPDATE files SET scan_gen = ? WHERE id = ?').run(gen, existing.id)
+  }
+  return changed
+}
+
+/** Borra los archivos de una raíz que no se vieron en la generación `gen`. */
+export function pruneRoot(rootId: number, gen: number): number {
+  const info = getDb()
+    .prepare('DELETE FROM files WHERE root_id = ? AND (scan_gen IS NULL OR scan_gen != ?)')
+    .run(rootId, gen)
+  return Number(info.changes)
+}
+
+export function deleteFileByPath(path: string): void {
+  getDb().prepare('DELETE FROM files WHERE path = ?').run(path)
+}
+
+export function setFileHash(id: number, hash: string): void {
+  getDb().prepare('UPDATE files SET hash = ? WHERE id = ?').run(hash, id)
+}
+
+export function selectPendingHashFiles(limit = 100000): { id: number; path: string }[] {
+  return getDb()
+    .prepare(
+      `SELECT f.id, f.path FROM files f
+       WHERE f.hash IS NULL
+       ORDER BY f.size ASC
+       LIMIT ?`
+    )
+    .all(limit) as unknown as { id: number; path: string }[]
+}
+
+export function countPendingHash(): number {
+  return (
+    getDb().prepare('SELECT COUNT(*) AS n FROM files WHERE hash IS NULL').get() as unknown as {
+      n: number
+    }
+  ).n
+}
+
+// --- Files: lectura / stats -------------------------------------------
+
+interface FileRow {
+  id: number
+  root_id: number
+  path: string
+  rel_path: string
+  name: string
+  format: string
+  size: number
+  mtime_ms: number
+  hash: string | null
+  thumb_status: string
+  thumb_file: string | null
+  added_at: number
+}
+
+function rowToFile(r: FileRow): ModelFile {
+  return {
+    id: r.id,
+    rootId: r.root_id,
+    path: r.path,
+    relPath: r.rel_path,
+    name: r.name,
+    format: r.format as ModelFormat,
+    size: r.size,
+    mtimeMs: r.mtime_ms,
+    hash: r.hash,
+    thumbStatus: r.thumb_status as ModelFile['thumbStatus'],
+    thumbFile: r.thumb_file,
+    addedAt: r.added_at
+  }
+}
+
+/** Convierte texto libre en una consulta FTS5 con prefijo por token. */
+function ftsQuery(raw: string): string | null {
+  const tokens = raw
+    .toLowerCase()
+    .split(/\s+/)
+    .map((t) => t.replace(/["*]/g, '').trim())
+    .filter(Boolean)
+  if (tokens.length === 0) return null
+  return tokens.map((t) => `"${t}"*`).join(' ')
+}
+
+const SORT_SQL: Record<FileSort, string> = {
+  recent: 'f.mtime_ms DESC',
+  name: 'f.name COLLATE NOCASE ASC',
+  size: 'f.size DESC'
+}
+
+export function listFiles(opts: ListFilesOptions): ListFilesResult {
+  const where: string[] = []
+  const params: (string | number)[] = []
+  let from = 'FROM files f'
+
+  const fts = opts.query ? ftsQuery(opts.query) : null
+  if (fts) {
+    from += ' JOIN files_fts ON files_fts.rowid = f.id'
+    where.push('files_fts MATCH ?')
+    params.push(fts)
+  }
+  if (opts.formats && opts.formats.length > 0) {
+    where.push(`f.format IN (${opts.formats.map(() => '?').join(',')})`)
+    params.push(...opts.formats)
+  }
+  if (opts.rootId != null) {
+    where.push('f.root_id = ?')
+    params.push(opts.rootId)
+  }
+
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
+  const total = (
+    getDb()
+      .prepare(`SELECT COUNT(*) AS n ${from} ${whereSql}`)
+      .get(...params) as unknown as { n: number }
+  ).n
+
+  const sort = SORT_SQL[opts.sort ?? 'recent']
+  const limit = Math.min(Math.max(opts.limit ?? 200, 1), 1000)
+  const offset = Math.max(opts.offset ?? 0, 0)
+
+  const rows = getDb()
+    .prepare(`SELECT f.* ${from} ${whereSql} ORDER BY ${sort} LIMIT ? OFFSET ?`)
+    .all(...params, limit, offset) as unknown as FileRow[]
+
+  return { items: rows.map(rowToFile), total }
+}
+
+export function computeStats(): LibraryStats {
+  const d = getDb()
+  const totals = d
+    .prepare('SELECT COUNT(*) AS n, COALESCE(SUM(size),0) AS s FROM files')
+    .get() as unknown as { n: number; s: number }
+
+  const byFormat = (
+    d
+      .prepare(
+        'SELECT format, COUNT(*) AS count, COALESCE(SUM(size),0) AS size FROM files GROUP BY format ORDER BY count DESC'
+      )
+      .all() as unknown as { format: string; count: number; size: number }[]
+  ).map((r) => ({ format: r.format as ModelFormat, count: r.count, size: r.size }))
+
+  const pendingHash = (
+    d.prepare('SELECT COUNT(*) AS n FROM files WHERE hash IS NULL').get() as unknown as { n: number }
+  ).n
+  const pendingThumb = (
+    d
+      .prepare("SELECT COUNT(*) AS n FROM files WHERE thumb_status = 'pending'")
+      .get() as unknown as { n: number }
+  ).n
+
+  const dup = d
+    .prepare(
+      `SELECT COUNT(*) AS groups, COALESCE(SUM(cnt-1),0) AS dupFiles, COALESCE(SUM((cnt-1)*sz),0) AS wasted
+       FROM (SELECT hash, COUNT(*) AS cnt, MIN(size) AS sz FROM files
+             WHERE hash IS NOT NULL GROUP BY hash HAVING COUNT(*) > 1)`
+    )
+    .get() as unknown as { groups: number; dupFiles: number; wasted: number }
+
+  return {
+    totalFiles: totals.n,
+    totalSize: totals.s,
+    byFormat,
+    pendingHash,
+    pendingThumb,
+    duplicateGroups: dup.groups,
+    duplicateFiles: dup.dupFiles,
+    wastedBytes: dup.wasted
+  }
 }
 
 export { rowToRoot }

@@ -10,6 +10,9 @@ import {
   selectRootRows,
   updateRootLabel
 } from './db'
+import { getScanState } from './state'
+import { scanRoot } from './scanner'
+import { syncWatchers } from './watcher'
 
 /** Heurística de tipo de raíz a partir de la ruta. */
 function classifyPath(p: string): RootKind {
@@ -33,7 +36,9 @@ async function isOnline(p: string): Promise<boolean> {
 export async function listRoots(): Promise<LibraryRoot[]> {
   const rows = selectRootRows()
   return Promise.all(
-    rows.map(async (r) => rowToRoot(r, await isOnline(r.path), countFilesByRoot(r.id)))
+    rows.map(async (r) =>
+      rowToRoot(r, await isOnline(r.path), countFilesByRoot(r.id), getScanState(r.id))
+    )
   )
 }
 
@@ -41,21 +46,22 @@ export async function addRootPath(path: string): Promise<LibraryRoot | null> {
   if (!(await isOnline(path))) return null
   const kind = classifyPath(path)
   const label = basename(path) || path
-  let id: number
-  try {
-    id = insertRoot(path, label, kind)
-  } catch {
-    // UNIQUE: ya existía; devuelve la existente.
-    const existing = selectRootRows().find((r) => r.path === path)
-    if (!existing) return null
-    return rowToRoot(existing, true, countFilesByRoot(existing.id))
+
+  const existing = selectRootRows().find((r) => r.path === path)
+  if (existing) {
+    return rowToRoot(existing, true, countFilesByRoot(existing.id), getScanState(existing.id))
   }
+
+  const id = insertRoot(path, label, kind)
   const row = selectRootRow(id)!
-  return rowToRoot(row, true, 0)
+  // Escaneo inicial + watcher en segundo plano.
+  void scanRoot(id).then(() => syncWatchers())
+  return rowToRoot(row, true, 0, getScanState(id))
 }
 
-export function removeRoot(id: number): void {
+export async function removeRoot(id: number): Promise<void> {
   deleteRoot(id)
+  await syncWatchers()
 }
 
 export function renameRoot(id: number, label: string): void {
