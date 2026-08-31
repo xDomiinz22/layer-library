@@ -41,7 +41,7 @@ function createWindow(): void {
     height: 820,
     minWidth: 940,
     minHeight: 600,
-    backgroundColor: '#0e1013',
+    backgroundColor: '#0b0f1a',
     show: false,
     autoHideMenuBar: true,
     title: 'Layer Library',

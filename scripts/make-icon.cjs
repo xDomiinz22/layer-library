@@ -68,18 +68,25 @@ function render(S) {
     }
   }
 
-  // fondo naranja
+  // fondo lima (degradado diagonal C7FF2E -> AEE81F)
   for (let y = 0; y < S; y++) {
     for (let x = 0; x < S; x++) {
       const cov = cover(x, y, inRound)
       if (cov <= 0) continue
       const t = (x + y) / (2 * S)
-      set(x, y, 255, Math.round(122 * (1 - t) + 176 * t), Math.round(47 * (1 - t) + 102 * t), cov)
+      set(
+        x,
+        y,
+        Math.round(199 * (1 - t) + 174 * t),
+        Math.round(255 * (1 - t) + 232 * t),
+        Math.round(46 * (1 - t) + 31 * t),
+        cov
+      )
     }
   }
 
-  // marca
-  const INK = [26, 18, 6]
+  // marca (azul-negro profundo, #0B0F1A)
+  const INK = [11, 15, 26]
   const K = 14 * scale
   const OX = 88 * scale
   const OY = 84 * scale

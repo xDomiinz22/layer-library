@@ -6,11 +6,11 @@ import { formatBytes } from '../lib/format'
 import { FormatGlyph } from './icons'
 
 const FORMAT_COLOR: Record<string, string> = {
-  stl: '#ff7a2f',
-  '3mf': '#4aa8ff',
-  obj: '#9a7aff',
-  step: '#3fb950',
-  gcode: '#e0b341'
+  stl: 'var(--fmt-stl)',
+  '3mf': 'var(--fmt-3mf)',
+  obj: 'var(--fmt-obj)',
+  step: 'var(--fmt-step)',
+  gcode: 'var(--fmt-gcode)'
 }
 
 export function thumbUrl(f: ModelFile): string | null {
@@ -97,7 +97,7 @@ export function ModelGrid({
                     <Thumb f={f} />
                     <span
                       className="card-fmt"
-                      style={{ background: FORMAT_COLOR[f.format] ?? '#888', color: '#0e1013' }}
+                      style={{ '--fmt': FORMAT_COLOR[f.format] ?? 'var(--text-faint)' } as React.CSSProperties}
                     >
                       {f.format}
                     </span>

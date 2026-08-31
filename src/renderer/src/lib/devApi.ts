@@ -65,7 +65,7 @@ const NAMES = [
   'castle_keep'
 ]
 
-const HUES = [22, 210, 265, 140, 45]
+const HUES = [78, 258, 345, 190, 40]
 function fakeThumb(i: number): string {
   const h = HUES[i % HUES.length]
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${h} 55% 62%)"/><stop offset="1" stop-color="hsl(${h} 45% 38%)"/></linearGradient></defs><rect width="200" height="200" fill="hsl(${h} 20% 14%)"/><circle cx="100" cy="105" r="${45 + (i % 5) * 8}" fill="url(#g)"/><rect x="60" y="150" width="80" height="10" rx="3" fill="hsl(${h} 30% 24%)"/></svg>`
