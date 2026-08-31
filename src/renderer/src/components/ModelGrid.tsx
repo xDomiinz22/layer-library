@@ -36,8 +36,10 @@ function Thumb({ f }: { f: ModelFile }) {
   )
 }
 
-const GAP = 14
-const NAME_H = 26 // altura del nombre bajo la miniatura
+const GAP = 16
+const CARD_GAP = 9 // hueco miniatura → nombre
+const NAME_LINE = 19 // altura de la línea del nombre
+const ROW_PAD_B = 18 // .grid-row padding-bottom
 
 export function ModelGrid({
   files,
@@ -51,10 +53,18 @@ export function ModelGrid({
   onSelect: (f: ModelFile) => void
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
-  const width = useResizeObserver(scrollRef)
+  const innerRef = useRef<HTMLDivElement>(null)
+  // `innerRef` mide el ancho de contenido real (descuenta padding y el hueco
+  // reservado para el panel de detalle).
+  const inner = useResizeObserver(innerRef)
 
-  const cols = Math.max(1, Math.floor((width + GAP) / (size + GAP)))
-  const rowH = size + NAME_H + GAP
+  // Si el ancho medido es implausiblemente pequeño (p. ej. mientras el panel de
+  // detalle reajusta el layout) se usa `size` para no colapsar la rejilla.
+  const w = inner > 60 ? inner : size
+  const cols = Math.max(1, Math.floor((w + GAP) / (size + GAP)))
+  // Altura real de fila = miniatura cuadrada (según ancho de columna) + nombre + hueco.
+  const thumbH = Math.max((w - (cols - 1) * GAP) / cols, size * 0.6)
+  const rowH = Math.round(thumbH + CARD_GAP + NAME_LINE + ROW_PAD_B)
   const rowCount = Math.ceil(files.length / cols)
 
   const virt = useVirtualizer({
@@ -71,7 +81,7 @@ export function ModelGrid({
 
   return (
     <div className="grid-scroll" ref={scrollRef}>
-      <div className="grid-inner" style={{ height: virt.getTotalSize() }}>
+      <div className="grid-inner" ref={innerRef} style={{ height: virt.getTotalSize() }}>
         {virt.getVirtualItems().map((vr) => {
           const start = vr.index * cols
           const rowFiles = files.slice(start, start + cols)
