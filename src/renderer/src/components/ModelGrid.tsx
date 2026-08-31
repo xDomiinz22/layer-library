@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useResizeObserver } from '../lib/useResizeObserver'
 import type { ModelFile } from '@shared/types'
-import { formatBytes } from '../lib/format'
 import { FormatGlyph } from './icons'
 
 const FORMAT_COLOR: Record<string, string> = {
@@ -38,7 +37,7 @@ function Thumb({ f }: { f: ModelFile }) {
 }
 
 const GAP = 14
-const NAME_H = 40 // nombre + meta
+const NAME_H = 26 // altura del nombre bajo la miniatura
 
 export function ModelGrid({
   files,
@@ -103,7 +102,6 @@ export function ModelGrid({
                     </span>
                   </div>
                   <div className="card-name">{f.name}</div>
-                  <div className="card-meta">{formatBytes(f.size)}</div>
                 </button>
               ))}
             </div>
