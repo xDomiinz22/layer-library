@@ -46,7 +46,7 @@ export function DetailPanel({
       setCopied(false)
       setShowColl(false)
     } else if (shownId != null) {
-      closeTimer.current = setTimeout(() => setShownId(null), 320)
+      closeTimer.current = setTimeout(() => setShownId(null), 440)
     }
     return () => clearTimeout(closeTimer.current)
   }, [fileId, shownId])

@@ -54,9 +54,12 @@
   --ease-out: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Curva tipo "sheet" de iOS: arranque suave, frenada larga sin rebote. */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   --dur-1: 130ms;
   --dur-2: 200ms;
   --dur-3: 300ms;
+  --dur-4: 420ms;
 
   /* Elevación — profunda y fría */
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -510,12 +513,27 @@ button {
 
 /* Reserve room for the inspector drawer so it never hides content — pero solo
    cuando la ventana es ancha; en pantallas estrechas el cajón se superpone al
-   borde derecho de la rejilla (no transicionado: el hueco salta). */
+   borde derecho de la rejilla. El hueco se anima al mismo ritmo que el cajón
+   para que el contenido acompañe al panel en vez de dar un salto seco. */
+.grid-scroll,
+.dupes-list,
+.queue-body {
+  transition: padding-right var(--dur-4) var(--ease-drawer);
+}
+
 @media (min-width: 1180px) {
   .app.with-detail .grid-scroll,
   .app.with-detail .dupes-list,
   .app.with-detail .queue-body {
     padding-right: calc(16px + var(--detail-w));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .grid-scroll,
+  .dupes-list,
+  .queue-body {
+    transition: none;
   }
 }
 
@@ -1156,10 +1174,11 @@ img.card-img {
   transform: translateX(100%);
   opacity: 0;
   visibility: hidden;
+  will-change: transform;
   transition:
-    transform var(--dur-3) var(--ease-out-quint),
-    opacity var(--dur-2) var(--ease-out),
-    visibility 0s linear var(--dur-3);
+    transform var(--dur-4) var(--ease-drawer),
+    opacity var(--dur-3) var(--ease-out),
+    visibility 0s linear var(--dur-4);
 }
 
 .detail.open {
@@ -1167,12 +1186,12 @@ img.card-img {
   opacity: 1;
   visibility: visible;
   transition:
-    transform var(--dur-3) var(--ease-out-quint),
+    transform var(--dur-4) var(--ease-drawer),
     opacity var(--dur-2) var(--ease-out);
 }
 
 .detail-body {
-  animation: fade-in var(--dur-3) var(--ease-out);
+  animation: fade-in var(--dur-4) var(--ease-out);
 }
 
 .detail-head {
@@ -1937,7 +1956,7 @@ h2,
   gap: 8px;
   align-items: flex-end;
   pointer-events: none;
-  transition: transform var(--dur-3) var(--ease-out-quint);
+  transition: transform var(--dur-4) var(--ease-drawer);
 }
 
 .app.with-detail .toaster {
