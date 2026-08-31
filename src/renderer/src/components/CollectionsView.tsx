@@ -4,6 +4,7 @@ import { ModelGrid } from './ModelGrid'
 import { formatCount } from '../lib/format'
 import { confirmDialog, promptDialog } from '../lib/dialog'
 import { toast } from '../lib/toast'
+import { PlusIcon } from './icons'
 
 export function CollectionsView({
   cardSize,
@@ -85,7 +86,7 @@ export function CollectionsView({
       <div className="coll-section-head">
         <span>{label}</span>
         <button className="coll-add" title={`Nueva ${label.toLowerCase()}`} onClick={() => create(kind)}>
-          +
+          <PlusIcon size={13} />
         </button>
       </div>
       {byKind(kind).map((c, i) => (

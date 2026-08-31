@@ -9,17 +9,28 @@ import { CollectionsView } from './components/CollectionsView'
 import { GridSkeleton } from './components/Skeleton'
 import { Toaster } from './components/Toaster'
 import { DialogHost } from './components/DialogHost'
+import { Logo } from './components/Logo'
+import {
+  CloseIcon,
+  CollectionsIcon,
+  DuplicateIcon,
+  FolderPlusIcon,
+  LibraryIcon,
+  PrinterIcon,
+  RefreshIcon,
+  SearchIcon
+} from './components/icons'
 import { promptDialog } from './lib/dialog'
 import { toast } from './lib/toast'
 import { formatBytes, formatCount, relativeTime } from './lib/format'
 
 type View = 'library' | 'duplicates' | 'queue' | 'collections'
 
-const NAV: { id: View; icon: string; label: string }[] = [
-  { id: 'library', icon: '▦', label: 'Biblioteca' },
-  { id: 'duplicates', icon: '⧉', label: 'Duplicados' },
-  { id: 'queue', icon: '★', label: 'Cola' },
-  { id: 'collections', icon: '❏', label: 'Colecciones' }
+const NAV: { id: View; Icon: typeof LibraryIcon; label: string }[] = [
+  { id: 'library', Icon: LibraryIcon, label: 'Biblioteca' },
+  { id: 'duplicates', Icon: DuplicateIcon, label: 'Duplicados' },
+  { id: 'queue', Icon: PrinterIcon, label: 'Cola' },
+  { id: 'collections', Icon: CollectionsIcon, label: 'Colecciones' }
 ]
 
 function readActiveRoot(): number | null {
@@ -186,20 +197,22 @@ export function App() {
     <div className={`app${selectedId != null ? ' with-detail' : ''}`}>
       <aside className="sidebar">
         <div className="brand">
-          <span className="mark">L</span>
-          Layer Library
+          <Logo />
         </div>
 
         <nav className="nav">
           {NAV.map((n) => {
             const b = navBadge(n.id)
+            const Icon = n.Icon
             return (
               <button
                 key={n.id}
                 className={`nav-item${view === n.id ? ' on' : ''}`}
                 onClick={() => setView(n.id)}
               >
-                <span className="nav-icon">{n.icon}</span>
+                <span className="nav-icon">
+                  <Icon size={17} plain />
+                </span>
                 {n.label}
                 {b > 0 && <span className="nav-badge">{b}</span>}
               </button>
@@ -254,7 +267,7 @@ export function App() {
                   removeRoot(r)
                 }}
               >
-                ✕
+                <CloseIcon size={12} />
               </button>
             </div>
           ))}
@@ -265,7 +278,8 @@ export function App() {
 
         <div className="side-add">
           <button className="btn accent" onClick={addRoot} disabled={busy}>
-            + Añadir carpeta
+            <FolderPlusIcon size={15} plain />
+            Añadir carpeta
           </button>
         </div>
 
@@ -279,7 +293,7 @@ export function App() {
         <div className="topbar">
           {view === 'library' ? (
             <div className="search">
-              <span>⌕</span>
+              <SearchIcon size={15} className="search-ic" />
               <input
                 placeholder={
                   activeRoot ? `Buscar en ${activeRoot.label}…` : 'Buscar en todas las bibliotecas…'
@@ -289,7 +303,7 @@ export function App() {
               />
               {query && (
                 <button className="search-clear" onClick={() => setQuery('')} title="Limpiar">
-                  ✕
+                  <CloseIcon size={12} />
                 </button>
               )}
             </div>
@@ -314,7 +328,8 @@ export function App() {
                   }
                   title={activeRoot ? `Reescanear ${activeRoot.label}` : 'Volver a escanear todo'}
                 >
-                  ↻ Reescanear
+                  <RefreshIcon size={14} plain />
+                  Reescanear
                 </button>
               )
             )}
@@ -340,7 +355,8 @@ export function App() {
                 Cada carpeta es una biblioteca independiente que puedes ver por separado.
               </p>
               <button className="btn accent" onClick={addRoot} disabled={busy}>
-                + Añadir la primera carpeta
+                <FolderPlusIcon size={16} plain />
+                Añadir la primera carpeta
               </button>
               <div className="hint">Nada sale de tu equipo. No se mueven ni renombran archivos.</div>
             </div>

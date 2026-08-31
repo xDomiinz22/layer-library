@@ -3,6 +3,16 @@ import type { Collection, FileDetail } from '@shared/types'
 import { thumbUrl } from './ModelGrid'
 import { formatBytes, formatDims, formatTris, fullDate } from '../lib/format'
 import { toast } from '../lib/toast'
+import {
+  CheckIcon,
+  ChevronIcon,
+  CloseIcon,
+  CopyIcon,
+  FolderOpenIcon,
+  OpenIcon,
+  PlusIcon,
+  TrashIcon
+} from './icons'
 
 export function DetailPanel({
   fileId,
@@ -93,8 +103,8 @@ export function DetailPanel({
         <>
           <div className="detail-head">
             <span className="detail-title">{f?.name ?? 'Detalle'}</span>
-            <button className="btn ghost sm" onClick={onClose} title="Cerrar (Esc)">
-              ✕
+            <button className="btn ghost sm icon-btn" onClick={onClose} title="Cerrar (Esc)">
+              <CloseIcon size={15} />
             </button>
           </div>
 
@@ -150,22 +160,26 @@ export function DetailPanel({
 
               <div className="detail-actions">
                 <button className="btn" onClick={() => window.api.openFile(f.path)}>
+                  <OpenIcon size={14} plain />
                   Abrir
                 </button>
                 <button className="btn" onClick={() => window.api.revealInExplorer(f.path)}>
+                  <FolderOpenIcon size={14} plain />
                   Ver en carpeta
                 </button>
                 <button className={`btn${detail.inQueue ? ' accent' : ''}`} onClick={toggleQueue}>
-                  {detail.inQueue ? '✓ En cola' : '+ Cola'}
+                  {detail.inQueue ? <CheckIcon size={14} plain /> : <PlusIcon size={14} plain />}
+                  {detail.inQueue ? 'En cola' : 'Cola'}
                 </button>
                 <button className="btn ghost" onClick={copyPath}>
+                  <CopyIcon size={14} plain />
                   {copied ? '¡Copiado!' : 'Copiar ruta'}
                 </button>
               </div>
 
               <div className="detail-coll">
                 <button className="coll-toggle" onClick={() => setShowColl((s) => !s)}>
-                  <span className={`caret${showColl ? ' open' : ''}`}>▸</span>
+                  <ChevronIcon open={showColl} size={13} />
                   Colecciones
                   {detail.collectionIds.length > 0 && (
                     <span className="coll-badge">{detail.collectionIds.length}</span>
@@ -214,6 +228,7 @@ export function DetailPanel({
               )}
 
               <button className="btn danger" onClick={trash}>
+                <TrashIcon size={14} plain />
                 Mover a la papelera
               </button>
             </div>

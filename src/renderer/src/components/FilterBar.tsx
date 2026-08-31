@@ -1,4 +1,5 @@
 import type { DateWindow, FileSort, ModelFormat } from '@shared/types'
+import { DuplicateIcon } from './icons'
 
 export interface Filters {
   formats: ModelFormat[]
@@ -73,11 +74,12 @@ export function FilterBar({
           </button>
         ))}
         <button
-          className={`chip${filters.onlyDuplicates ? ' on' : ''}`}
+          className={`chip chip-ic${filters.onlyDuplicates ? ' on' : ''}`}
           onClick={() => set('onlyDuplicates', !filters.onlyDuplicates)}
           title="Mostrar solo archivos duplicados"
         >
-          ⧉ Duplicados
+          <DuplicateIcon size={13} plain />
+          Duplicados
         </button>
       </div>
 

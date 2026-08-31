@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { DuplicateGroup } from '@shared/types'
 import { formatBytes, formatCount, relativeTime } from '../lib/format'
 import { toast } from '../lib/toast'
+import { TrashIcon } from './icons'
 
 function groupThumb(g: DuplicateGroup): string | null {
   if (!g.thumbFile) return null
@@ -97,6 +98,7 @@ export function DuplicatesView() {
                   disabled={busy === g.hash}
                   onClick={() => clean(g)}
                 >
+                  <TrashIcon size={13} plain />
                   {busy === g.hash
                     ? 'Moviendo…'
                     : `Mover las otras ${g.members.length - 1} a la papelera`}

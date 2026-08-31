@@ -3,6 +3,15 @@ import type { Printer, QueueItem } from '@shared/types'
 import { thumbUrl } from './ModelGrid'
 import { formatBytes } from '../lib/format'
 import { toast } from '../lib/toast'
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  CheckIcon,
+  CloseIcon,
+  FormatGlyph,
+  PlusIcon,
+  UndoIcon
+} from './icons'
 
 function QRow({
   it,
@@ -24,7 +33,13 @@ function QRow({
       style={{ '--i': Math.min(i, 12) } as React.CSSProperties}
     >
       <div className="q-thumb" onClick={() => onSelect(it.file.id)}>
-        {url ? <img src={url} alt="" /> : <span className="ph-glyph sm">△</span>}
+        {url ? (
+          <img src={url} alt="" />
+        ) : (
+          <span className="ph-glyph sm">
+            <FormatGlyph format={it.file.format} size={18} />
+          </span>
+        )}
       </div>
       <div className="q-info" onClick={() => onSelect(it.file.id)}>
         <div className="q-name">{it.file.name}</div>
@@ -32,8 +47,12 @@ function QRow({
       </div>
       {!it.printed && (
         <div className="q-order">
-          <button onClick={() => window.api.moveQueueItem(it.id, 'up').then(refresh)}>↑</button>
-          <button onClick={() => window.api.moveQueueItem(it.id, 'down').then(refresh)}>↓</button>
+          <button title="Subir" onClick={() => window.api.moveQueueItem(it.id, 'up').then(refresh)}>
+            <ArrowUpIcon size={13} />
+          </button>
+          <button title="Bajar" onClick={() => window.api.moveQueueItem(it.id, 'down').then(refresh)}>
+            <ArrowDownIcon size={13} />
+          </button>
         </div>
       )}
       <select
@@ -53,18 +72,18 @@ function QRow({
         ))}
       </select>
       <button
-        className="btn sm ghost"
+        className="btn sm ghost icon-btn"
         title={it.printed ? 'Marcar como pendiente' : 'Marcar como impreso'}
         onClick={() => window.api.updateQueueItem(it.id, { printed: !it.printed }).then(refresh)}
       >
-        {it.printed ? '↩' : '✓'}
+        {it.printed ? <UndoIcon size={14} /> : <CheckIcon size={14} />}
       </button>
       <button
-        className="btn sm ghost"
+        className="btn sm ghost icon-btn"
         title="Quitar de la cola"
         onClick={() => window.api.removeFromQueue(it.id).then(refresh)}
       >
-        ✕
+        <CloseIcon size={13} />
       </button>
     </div>
   )
@@ -118,7 +137,8 @@ export function QueueView({ onSelect }: { onSelect: (id: number) => void }) {
           onKeyDown={(e) => e.key === 'Enter' && addPrinter()}
         />
         <button className="btn sm" onClick={addPrinter}>
-          + Impresora
+          <PlusIcon size={13} plain />
+          Impresora
         </button>
       </div>
 
@@ -146,7 +166,7 @@ export function QueueView({ onSelect }: { onSelect: (id: number) => void }) {
                       title="Eliminar impresora"
                       onClick={() => window.api.deletePrinter(col.printerId as number).then(refresh)}
                     >
-                      ✕
+                      <CloseIcon size={11} />
                     </button>
                   )}
                 </div>

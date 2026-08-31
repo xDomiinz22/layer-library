@@ -3,6 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { useResizeObserver } from '../lib/useResizeObserver'
 import type { ModelFile } from '@shared/types'
 import { formatBytes } from '../lib/format'
+import { FormatGlyph } from './icons'
 
 const FORMAT_COLOR: Record<string, string> = {
   stl: '#ff7a2f',
@@ -10,14 +11,6 @@ const FORMAT_COLOR: Record<string, string> = {
   obj: '#9a7aff',
   step: '#3fb950',
   gcode: '#e0b341'
-}
-
-const GLYPH: Record<string, string> = {
-  stl: '△',
-  obj: '△',
-  '3mf': '◫',
-  step: '⬡',
-  gcode: '⌰'
 }
 
 export function thumbUrl(f: ModelFile): string | null {
@@ -37,7 +30,9 @@ function Thumb({ f }: { f: ModelFile }) {
     )
   return (
     <div className="card-img placeholder">
-      <span className="ph-glyph">{GLYPH[f.format] ?? '△'}</span>
+      <span className="ph-glyph">
+        <FormatGlyph format={f.format} size={38} />
+      </span>
     </div>
   )
 }

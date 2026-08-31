@@ -160,25 +160,35 @@ button {
 }
 
 .brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 18px 18px 14px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-  font-size: 15px;
+  padding: 18px 16px 14px;
 }
 
-.brand .mark {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  background: linear-gradient(135deg, var(--accent), #ffb066);
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.logo-mark {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 7px;
+  background: linear-gradient(140deg, var(--accent), #ffab63);
   display: grid;
   place-items: center;
   color: #1a1206;
-  font-size: 13px;
-  font-weight: 800;
+  box-shadow: 0 2px 8px -2px #ff7a2f66;
+}
+
+.logo-word {
+  font-weight: 680;
+  font-size: 15px;
+  letter-spacing: -0.015em;
+}
+
+.logo-word-accent {
+  color: var(--accent);
 }
 
 .nav {
@@ -210,9 +220,36 @@ button {
 }
 
 .nav-icon {
-  width: 16px;
-  text-align: center;
-  opacity: 0.9;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  flex: none;
+  opacity: 0.85;
+}
+
+.nav-icon {
+  transition: transform var(--dur-2) var(--ease-out-quint);
+}
+
+.nav-item:hover .nav-icon {
+  transform: scale(1.13) rotate(-7deg);
+}
+
+.nav-item.on .nav-icon {
+  opacity: 1;
+}
+
+/* SVG icons behave as inline blocks inside flex controls */
+.btn svg,
+.chip svg,
+.search svg,
+.search-clear svg,
+.kill svg,
+.coll-add svg,
+.q-order button svg,
+.dupe-main .btn svg {
+  display: block;
+  flex: none;
 }
 
 .nav-badge {
@@ -346,8 +383,11 @@ button {
 .root-item .kill {
   opacity: 0;
   color: var(--text-faint);
-  padding: 2px 4px;
+  padding: 3px;
   border-radius: 5px;
+  display: grid;
+  place-items: center;
+  flex: none;
 }
 
 .root-item:hover .kill {
@@ -467,6 +507,16 @@ button {
 
 .search:focus-within {
   border-color: #3a4150;
+}
+
+.search-ic {
+  flex: none;
+  color: var(--text-faint);
+  transition: color var(--dur-2) var(--ease-out);
+}
+
+.search:focus-within .search-ic {
+  color: var(--text-dim);
 }
 
 .search input::placeholder {
@@ -826,9 +876,48 @@ img.card-img {
 }
 
 .ph-glyph {
-  font-size: 34px;
+  display: grid;
+  place-items: center;
   color: var(--text-faint);
-  opacity: 0.5;
+  opacity: 0.55;
+}
+
+/* ---- Icon buttons -------------------------------------------- */
+
+.icon-btn {
+  padding: 6px;
+  display: grid;
+  place-items: center;
+}
+
+.chip.chip-ic {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Iconos "planos" (SVG estático) dentro de botones con texto: el hover del
+   botón los anima por CSS de forma consistente. */
+.ic-plain {
+  transition: transform var(--dur-2) var(--ease-out-quint);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.btn:hover .ic-plain,
+.chip:hover .ic-plain,
+.coll-toggle:hover .ic-plain {
+  transform: scale(1.12) rotate(-6deg);
+}
+
+.coll-add {
+  display: grid;
+  place-items: center;
+  padding: 3px;
+}
+
+.detail-actions .btn svg {
+  opacity: 0.85;
 }
 
 .shimmer {
