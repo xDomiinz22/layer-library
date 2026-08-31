@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import type { Collection, CollectionKind, ModelFile } from '@shared/types'
 import { ModelGrid } from './ModelGrid'
 import { formatCount } from '../lib/format'
+import { confirmDialog, promptDialog } from '../lib/dialog'
+import { toast } from '../lib/toast'
 
 export function CollectionsView({
   cardSize,
@@ -37,26 +39,42 @@ export function CollectionsView({
   }, [activeId, collections])
 
   const create = async (kind: CollectionKind): Promise<void> => {
-    const name = window.prompt(kind === 'creator' ? 'Nombre del creador' : 'Nombre de la colección')
-    if (!name?.trim()) return
-    const c = await window.api.createCollection(name.trim(), kind)
+    const name = await promptDialog({
+      title: kind === 'creator' ? 'Nuevo creador' : 'Nueva colección',
+      placeholder: kind === 'creator' ? 'p. ej. Fotis Mint' : 'p. ej. Para regalar',
+      confirmLabel: 'Crear'
+    })
+    if (!name) return
+    const c = await window.api.createCollection(name, kind)
     await refreshList()
     setActiveId(c.id)
+    toast(`${kind === 'creator' ? 'Creador' : 'Colección'} “${name}” creada`)
   }
 
   const rename = async (c: Collection): Promise<void> => {
-    const name = window.prompt('Nuevo nombre', c.name)
-    if (name?.trim() && name !== c.name) {
-      await window.api.renameCollection(c.id, name.trim())
+    const name = await promptDialog({
+      title: 'Renombrar',
+      defaultValue: c.name,
+      confirmLabel: 'Guardar'
+    })
+    if (name && name !== c.name) {
+      await window.api.renameCollection(c.id, name)
       await refreshList()
     }
   }
 
   const remove = async (c: Collection): Promise<void> => {
-    if (!window.confirm(`¿Eliminar “${c.name}”? Los archivos no se borran.`)) return
+    const ok = await confirmDialog({
+      title: `¿Eliminar “${c.name}”?`,
+      message: 'Se borra la colección, no los archivos.',
+      confirmLabel: 'Eliminar',
+      danger: true
+    })
+    if (!ok) return
     await window.api.deleteCollection(c.id)
     if (activeId === c.id) setActiveId(null)
     await refreshList()
+    toast(`“${c.name}” eliminada`)
   }
 
   const byKind = (k: CollectionKind): Collection[] => collections.filter((c) => c.kind === k)
@@ -70,10 +88,11 @@ export function CollectionsView({
           +
         </button>
       </div>
-      {byKind(kind).map((c) => (
+      {byKind(kind).map((c, i) => (
         <button
           key={c.id}
           className={`coll-item${c.id === activeId ? ' on' : ''}`}
+          style={{ '--i': i } as React.CSSProperties}
           onClick={() => setActiveId(c.id)}
           onDoubleClick={() => rename(c)}
         >

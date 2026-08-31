@@ -2,21 +2,27 @@ import { useCallback, useEffect, useState } from 'react'
 import type { Printer, QueueItem } from '@shared/types'
 import { thumbUrl } from './ModelGrid'
 import { formatBytes } from '../lib/format'
+import { toast } from '../lib/toast'
 
 function QRow({
   it,
+  i,
   printers,
   refresh,
   onSelect
 }: {
   it: QueueItem
+  i: number
   printers: Printer[]
   refresh: () => Promise<void>
   onSelect: (id: number) => void
 }) {
   const url = thumbUrl(it.file)
   return (
-    <div className={`q-row${it.printed ? ' done' : ''}`}>
+    <div
+      className={`q-row${it.printed ? ' done' : ''}`}
+      style={{ '--i': Math.min(i, 12) } as React.CSSProperties}
+    >
       <div className="q-thumb" onClick={() => onSelect(it.file.id)}>
         {url ? <img src={url} alt="" /> : <span className="ph-glyph sm">△</span>}
       </div>
@@ -82,9 +88,11 @@ export function QueueView({ onSelect }: { onSelect: (id: number) => void }) {
   }, [refresh])
 
   const addPrinter = async (): Promise<void> => {
-    if (!newPrinter.trim()) return
-    await window.api.createPrinter(newPrinter.trim())
+    const name = newPrinter.trim()
+    if (!name) return
+    await window.api.createPrinter(name)
     setNewPrinter('')
+    toast(`Impresora “${name}” añadida`)
     await refresh()
   }
 
@@ -142,8 +150,15 @@ export function QueueView({ onSelect }: { onSelect: (id: number) => void }) {
                     </button>
                   )}
                 </div>
-                {colItems.map((it) => (
-                  <QRow key={it.id} it={it} printers={printers} refresh={refresh} onSelect={onSelect} />
+                {colItems.map((it, i) => (
+                  <QRow
+                    key={it.id}
+                    it={it}
+                    i={i}
+                    printers={printers}
+                    refresh={refresh}
+                    onSelect={onSelect}
+                  />
                 ))}
                 {colItems.length === 0 && <div className="q-col-empty">—</div>}
               </div>
@@ -153,8 +168,15 @@ export function QueueView({ onSelect }: { onSelect: (id: number) => void }) {
           {printed.length > 0 && (
             <div className="q-col q-printed">
               <div className="q-col-head">Impresos</div>
-              {printed.map((it) => (
-                <QRow key={it.id} it={it} printers={printers} refresh={refresh} onSelect={onSelect} />
+              {printed.map((it, i) => (
+                <QRow
+                  key={it.id}
+                  it={it}
+                  i={i}
+                  printers={printers}
+                  refresh={refresh}
+                  onSelect={onSelect}
+                />
               ))}
             </div>
           )}

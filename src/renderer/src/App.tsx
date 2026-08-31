@@ -6,6 +6,11 @@ import { DetailPanel } from './components/DetailPanel'
 import { DuplicatesView } from './components/DuplicatesView'
 import { QueueView } from './components/QueueView'
 import { CollectionsView } from './components/CollectionsView'
+import { GridSkeleton } from './components/Skeleton'
+import { Toaster } from './components/Toaster'
+import { DialogHost } from './components/DialogHost'
+import { promptDialog } from './lib/dialog'
+import { toast } from './lib/toast'
 import { formatBytes, formatCount, relativeTime } from './lib/format'
 
 type View = 'library' | 'duplicates' | 'queue' | 'collections'
@@ -127,6 +132,7 @@ export function App() {
     async (r: LibraryRoot) => {
       await window.api.removeRoot(r.id)
       setActiveRootId((cur) => (cur === r.id ? null : cur))
+      toast(`Biblioteca “${r.label}” quitada`)
       await refreshAll()
     },
     [refreshAll]
@@ -134,9 +140,13 @@ export function App() {
 
   const renameRoot = useCallback(
     async (r: LibraryRoot) => {
-      const next = window.prompt('Nombre de la biblioteca', r.label)
-      if (next && next.trim() && next !== r.label) {
-        await window.api.renameRoot(r.id, next.trim())
+      const next = await promptDialog({
+        title: 'Renombrar biblioteca',
+        defaultValue: r.label,
+        confirmLabel: 'Guardar'
+      })
+      if (next && next !== r.label) {
+        await window.api.renameRoot(r.id, next)
         await refreshRoots()
       }
     },
@@ -314,8 +324,8 @@ export function App() {
         {working && (
           <div className="progressbar">
             <div
-              className="progressbar-fill"
-              style={{ transform: `scaleX(${(pct ?? 12) / 100})` }}
+              className={`progressbar-fill${pct == null ? ' indeterminate' : ''}`}
+              style={pct == null ? undefined : { transform: `scaleX(${pct / 100})` }}
             />
           </div>
         )}
@@ -336,17 +346,23 @@ export function App() {
             </div>
           </div>
         ) : view === 'duplicates' ? (
-          <DuplicatesView />
+          <div className="view" key="duplicates">
+            <DuplicatesView />
+          </div>
         ) : view === 'queue' ? (
-          <QueueView onSelect={setSelectedId} />
+          <div className="view" key="queue">
+            <QueueView onSelect={setSelectedId} />
+          </div>
         ) : view === 'collections' ? (
-          <CollectionsView
-            cardSize={cardSize}
-            selectedFileId={selectedId}
-            onSelectFile={setSelectedId}
-          />
+          <div className="view" key="collections">
+            <CollectionsView
+              cardSize={cardSize}
+              selectedFileId={selectedId}
+              onSelectFile={setSelectedId}
+            />
+          </div>
         ) : (
-          <>
+          <div className="view" key={`library-${activeRootId}`}>
             <div className="stat-strip">
               {activeRoot && <span className="strip-scope">📁 {activeRoot.label}</span>}
               <span>
@@ -380,17 +396,17 @@ export function App() {
               count={fileTotal}
             />
 
-            {files.length === 0 ? (
+            {loading && files.length === 0 ? (
+              <GridSkeleton size={cardSize} />
+            ) : files.length === 0 ? (
               <div className="list-empty">
-                {loading
-                  ? 'Cargando…'
-                  : query || filtersActive
-                    ? 'Ningún archivo coincide con la búsqueda.'
-                    : walking
-                      ? 'Escaneando… los archivos aparecerán aquí.'
-                      : activeRoot
-                        ? `${activeRoot.label} no tiene modelos indexados todavía.`
-                        : 'No se han encontrado modelos en estas carpetas.'}
+                {query || filtersActive
+                  ? 'Ningún archivo coincide con la búsqueda.'
+                  : walking
+                    ? 'Escaneando… los archivos aparecerán aquí.'
+                    : activeRoot
+                      ? `${activeRoot.label} no tiene modelos indexados todavía.`
+                      : 'No se han encontrado modelos en estas carpetas.'}
               </div>
             ) : (
               <ModelGrid
@@ -400,11 +416,13 @@ export function App() {
                 onSelect={(f) => setSelectedId((cur) => (cur === f.id ? null : f.id))}
               />
             )}
-          </>
+          </div>
         )}
       </main>
 
       <DetailPanel fileId={selectedId} onClose={() => setSelectedId(null)} onTrashed={refreshAll} />
+      <Toaster />
+      <DialogHost />
     </div>
   )
 }

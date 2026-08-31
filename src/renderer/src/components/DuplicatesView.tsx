@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { DuplicateGroup } from '@shared/types'
 import { formatBytes, formatCount, relativeTime } from '../lib/format'
+import { toast } from '../lib/toast'
 
 function groupThumb(g: DuplicateGroup): string | null {
   if (!g.thumbFile) return null
@@ -34,7 +35,8 @@ export function DuplicatesView() {
     if (toTrash.length === 0) return
     setBusy(g.hash)
     try {
-      await window.api.trashFiles(toTrash)
+      const n = await window.api.trashFiles(toTrash)
+      if (n > 0) toast(`${n} ${n === 1 ? 'copia movida' : 'copias movidas'} a la papelera`, 'danger')
       await refresh()
     } finally {
       setBusy(null)
@@ -62,11 +64,11 @@ export function DuplicatesView() {
       </div>
 
       <div className="dupes-list">
-        {groups.map((g) => {
+        {groups.map((g, i) => {
           const keepId = keep[g.hash] ?? g.members[0].id
           const thumb = groupThumb(g)
           return (
-            <div className="dupe-group" key={g.hash}>
+            <div className="dupe-group" key={g.hash} style={{ '--i': i } as React.CSSProperties}>
               <div className="dupe-thumb">
                 {thumb ? <img src={thumb} alt="" /> : <span className="ph-glyph">△</span>}
               </div>

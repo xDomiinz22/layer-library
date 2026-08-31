@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Collection, FileDetail } from '@shared/types'
 import { thumbUrl } from './ModelGrid'
 import { formatBytes, formatDims, formatTris, fullDate } from '../lib/format'
+import { toast } from '../lib/toast'
 
 export function DetailPanel({
   fileId,
@@ -12,48 +13,63 @@ export function DetailPanel({
   onClose: () => void
   onTrashed: () => void
 }) {
+  // Mantiene el contenido montado durante la animación de salida.
+  const [shownId, setShownId] = useState<number | null>(fileId)
   const [detail, setDetail] = useState<FileDetail | null>(null)
   const [collections, setCollections] = useState<Collection[]>([])
   const [copied, setCopied] = useState(false)
   const [showColl, setShowColl] = useState(false)
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  useEffect(() => {
+    if (fileId != null) {
+      clearTimeout(closeTimer.current)
+      setShownId(fileId)
+      setDetail(null)
+      setCopied(false)
+      setShowColl(false)
+    } else if (shownId != null) {
+      closeTimer.current = setTimeout(() => setShownId(null), 320)
+    }
+    return () => clearTimeout(closeTimer.current)
+  }, [fileId, shownId])
 
   const load = useCallback(async () => {
-    if (fileId == null) return
+    if (shownId == null) return
     const [d, c] = await Promise.all([
-      window.api.getFileDetail(fileId),
+      window.api.getFileDetail(shownId),
       window.api.listCollections()
     ])
     setDetail(d)
     setCollections(c)
-  }, [fileId])
+  }, [shownId])
 
   useEffect(() => {
-    setDetail(null)
-    setCopied(false)
-    setShowColl(false)
     void load()
-  }, [fileId, load])
+  }, [load])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape' && fileId != null) onClose()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [onClose, fileId])
 
-  if (fileId == null) return null
-
+  const open = fileId != null
   const f = detail?.file
+
   const copyPath = (): void => {
     if (!f) return
     window.api.copyText(f.path)
     setCopied(true)
+    toast('Ruta copiada al portapapeles')
     setTimeout(() => setCopied(false), 1400)
   }
   const toggleQueue = async (): Promise<void> => {
     if (!f) return
-    await window.api.toggleQueue(f.id)
+    const nowIn = await window.api.toggleQueue(f.id)
+    toast(nowIn ? `“${f.name}” añadido a la cola` : `“${f.name}” quitado de la cola`)
     await load()
   }
   const toggleColl = async (cid: number, member: boolean): Promise<void> => {
@@ -65,123 +81,144 @@ export function DetailPanel({
     if (!f) return
     const n = await window.api.trashFiles([f.id])
     if (n > 0) {
+      toast(`“${f.name}” movido a la papelera`, 'danger')
       onClose()
       onTrashed()
     }
   }
 
   return (
-    <aside className="detail">
-      <div className="detail-head">
-        <span className="detail-title">{f?.name ?? 'Cargando…'}</span>
-        <button className="btn ghost sm" onClick={onClose} title="Cerrar (Esc)">
-          ✕
-        </button>
-      </div>
+    <aside className={`detail${open ? ' open' : ''}`} aria-hidden={!open}>
+      {shownId != null && (
+        <>
+          <div className="detail-head">
+            <span className="detail-title">{f?.name ?? 'Detalle'}</span>
+            <button className="btn ghost sm" onClick={onClose} title="Cerrar (Esc)">
+              ✕
+            </button>
+          </div>
 
-      {f && detail && (
-        <div className="detail-body">
-          <div className="detail-preview">
-            {thumbUrl(f) ? (
-              <img src={thumbUrl(f)!} alt={f.name} />
-            ) : (
-              <div className="detail-preview-ph">
-                {f.thumbStatus === 'pending'
-                  ? 'Generando miniatura…'
-                  : f.format === 'step'
-                    ? 'STEP · vista previa no disponible'
-                    : f.format === 'gcode'
-                      ? 'G-code sin miniatura embebida'
-                      : 'Sin miniatura'}
+          {!detail ? (
+            <div className="detail-body">
+              <div className="detail-preview sk-shimmer" />
+              <div className="kv-skeleton">
+                {Array.from({ length: 6 }, (_, i) => (
+                  <div className="sk-line" key={i} />
+                ))}
               </div>
-            )}
-          </div>
-
-          <dl className="kv">
-            <dt>Formato</dt>
-            <dd>{f.format.toUpperCase()}</dd>
-            <dt>Tamaño</dt>
-            <dd>{formatBytes(f.size)}</dd>
-            <dt>Dimensiones</dt>
-            <dd>{formatDims(f.dim)}</dd>
-            <dt>Malla</dt>
-            <dd>{formatTris(f.triCount)}</dd>
-            <dt>Modificado</dt>
-            <dd>{fullDate(f.mtimeMs)}</dd>
-            <dt>Biblioteca</dt>
-            <dd>{detail.rootLabel}</dd>
-            <dt>Ruta</dt>
-            <dd className="kv-path">{f.relPath}</dd>
-            <dt>Huella</dt>
-            <dd className="kv-hash">{f.hash ? f.hash.slice(0, 24) + '…' : 'pendiente'}</dd>
-          </dl>
-
-          <div className="detail-actions">
-            <button className="btn" onClick={() => window.api.openFile(f.path)}>
-              Abrir
-            </button>
-            <button className="btn" onClick={() => window.api.revealInExplorer(f.path)}>
-              Ver en carpeta
-            </button>
-            <button className={`btn${detail.inQueue ? ' accent' : ''}`} onClick={toggleQueue}>
-              {detail.inQueue ? '✓ En cola' : '+ Cola'}
-            </button>
-            <button className="btn ghost" onClick={copyPath}>
-              {copied ? '¡Copiado!' : 'Copiar ruta'}
-            </button>
-          </div>
-
-          <div className="detail-coll">
-            <button className="coll-toggle" onClick={() => setShowColl((s) => !s)}>
-              Colecciones {showColl ? '▲' : '▼'}
-              {detail.collectionIds.length > 0 && (
-                <span className="coll-badge">{detail.collectionIds.length}</span>
-              )}
-            </button>
-            {showColl && (
-              <div className="coll-checks">
-                {collections.length === 0 && (
-                  <div className="coll-empty">Aún no has creado ninguna.</div>
+            </div>
+          ) : !f ? (
+            <div className="detail-body">
+              <p className="dialog-msg">Este archivo ya no está disponible.</p>
+            </div>
+          ) : (
+            <div className="detail-body">
+              <div className="detail-preview">
+                {thumbUrl(f) ? (
+                  <img src={thumbUrl(f)!} alt={f.name} />
+                ) : (
+                  <div className="detail-preview-ph">
+                    {f.thumbStatus === 'pending'
+                      ? 'Generando miniatura…'
+                      : f.format === 'step'
+                        ? 'STEP · vista previa no disponible'
+                        : f.format === 'gcode'
+                          ? 'G-code sin miniatura embebida'
+                          : 'Sin miniatura'}
+                  </div>
                 )}
-                {collections.map((c) => {
-                  const on = detail.collectionIds.includes(c.id)
-                  return (
-                    <label key={c.id} className="coll-check">
-                      <input
-                        type="checkbox"
-                        checked={on}
-                        onChange={() => toggleColl(c.id, !on)}
-                      />
-                      {c.name}
-                      <span className="coll-kind">{c.kind === 'creator' ? 'creador' : ''}</span>
-                    </label>
-                  )
-                })}
               </div>
-            )}
-          </div>
 
-          {detail.duplicates.length > 0 && (
-            <div className="detail-dups">
-              <h4>{detail.duplicates.length} copia(s) idéntica(s)</h4>
-              {detail.duplicates.map((d) => (
-                <button
-                  key={d.id}
-                  className="dup-row"
-                  title={d.path}
-                  onClick={() => window.api.revealInExplorer(d.path)}
-                >
-                  <span className="dup-lib">{d.rootLabel}</span>
-                  <span className="dup-path">{d.relPath}</span>
+              <dl className="kv">
+                <dt>Formato</dt>
+                <dd>{f.format.toUpperCase()}</dd>
+                <dt>Tamaño</dt>
+                <dd>{formatBytes(f.size)}</dd>
+                <dt>Dimensiones</dt>
+                <dd>{formatDims(f.dim)}</dd>
+                <dt>Malla</dt>
+                <dd>{formatTris(f.triCount)}</dd>
+                <dt>Modificado</dt>
+                <dd>{fullDate(f.mtimeMs)}</dd>
+                <dt>Biblioteca</dt>
+                <dd>{detail.rootLabel}</dd>
+                <dt>Ruta</dt>
+                <dd className="kv-path">{f.relPath}</dd>
+                <dt>Huella</dt>
+                <dd className="kv-hash">{f.hash ? f.hash.slice(0, 24) + '…' : 'pendiente'}</dd>
+              </dl>
+
+              <div className="detail-actions">
+                <button className="btn" onClick={() => window.api.openFile(f.path)}>
+                  Abrir
                 </button>
-              ))}
+                <button className="btn" onClick={() => window.api.revealInExplorer(f.path)}>
+                  Ver en carpeta
+                </button>
+                <button className={`btn${detail.inQueue ? ' accent' : ''}`} onClick={toggleQueue}>
+                  {detail.inQueue ? '✓ En cola' : '+ Cola'}
+                </button>
+                <button className="btn ghost" onClick={copyPath}>
+                  {copied ? '¡Copiado!' : 'Copiar ruta'}
+                </button>
+              </div>
+
+              <div className="detail-coll">
+                <button className="coll-toggle" onClick={() => setShowColl((s) => !s)}>
+                  <span className={`caret${showColl ? ' open' : ''}`}>▸</span>
+                  Colecciones
+                  {detail.collectionIds.length > 0 && (
+                    <span className="coll-badge">{detail.collectionIds.length}</span>
+                  )}
+                </button>
+                <div className={`coll-checks${showColl ? ' open' : ''}`}>
+                  <div className="coll-checks-inner">
+                    {collections.length === 0 && (
+                      <div className="coll-empty">Aún no has creado ninguna.</div>
+                    )}
+                    {collections.map((c) => {
+                      const on = detail.collectionIds.includes(c.id)
+                      return (
+                        <label key={c.id} className="coll-check">
+                          <input
+                            type="checkbox"
+                            checked={on}
+                            onChange={() => toggleColl(c.id, !on)}
+                          />
+                          {c.name}
+                          <span className="coll-kind">
+                            {c.kind === 'creator' ? 'creador' : ''}
+                          </span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {detail.duplicates.length > 0 && (
+                <div className="detail-dups">
+                  <h4>{detail.duplicates.length} copia(s) idéntica(s)</h4>
+                  {detail.duplicates.map((d) => (
+                    <button
+                      key={d.id}
+                      className="dup-row"
+                      title={d.path}
+                      onClick={() => window.api.revealInExplorer(d.path)}
+                    >
+                      <span className="dup-lib">{d.rootLabel}</span>
+                      <span className="dup-path">{d.relPath}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <button className="btn danger" onClick={trash}>
+                Mover a la papelera
+              </button>
             </div>
           )}
-
-          <button className="btn danger" onClick={trash}>
-            Mover a la papelera
-          </button>
-        </div>
+        </>
       )}
     </aside>
   )
