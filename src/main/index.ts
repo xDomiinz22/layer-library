@@ -4,7 +4,7 @@ import { app, BrowserWindow, net, protocol, shell } from 'electron'
 import { initDb } from './db'
 import { registerIpc } from './ipc'
 import { scanAll } from './scanner'
-import { thumbFilePath } from './thumbnailer'
+import { pruneThumbnailCache, thumbFilePath } from './thumbnailer'
 import { closeWatchers, syncWatchers } from './watcher'
 
 const isDev = !app.isPackaged
@@ -69,6 +69,8 @@ app.whenReady().then(() => {
   // Indexado y vigilancia en segundo plano.
   void scanAll()
   void syncWatchers()
+  // Limpieza de miniaturas huérfanas (sin bloquear el arranque).
+  setTimeout(() => void pruneThumbnailCache(), 8000)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

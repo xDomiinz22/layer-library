@@ -1,9 +1,10 @@
 import { join } from 'node:path'
 import { existsSync } from 'node:fs'
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { app, BrowserWindow, ipcMain } from 'electron'
 import {
   findThumbByHash,
+  getDb,
   selectPendingThumbFiles,
   setThumbResult,
   setThumbResultByHash,
@@ -11,6 +12,7 @@ import {
 } from './db'
 import { emitLibraryChanged, emitScanProgress } from './emit'
 import { extract3mfThumbnail } from './threemf'
+import { extractGcodeThumbnail } from './gcode'
 import type { MeshMeta } from '../shared/types'
 
 interface RenderResult {
@@ -27,6 +29,39 @@ function thumbDir(): string {
 
 export function thumbFilePath(file: string): string {
   return join(thumbDir(), file)
+}
+
+/** Borra de la caché las miniaturas cuyo hash ya no referencia ningún archivo. */
+export async function pruneThumbnailCache(): Promise<number> {
+  let names: string[]
+  try {
+    names = await readdir(thumbDir())
+  } catch {
+    return 0
+  }
+  const pngs = names.filter((n) => n.endsWith('.png'))
+  if (pngs.length === 0) return 0
+
+  const live = new Set(
+    (
+      getDb().prepare('SELECT DISTINCT hash FROM files WHERE hash IS NOT NULL').all() as unknown as {
+        hash: string
+      }[]
+    ).map((r) => `${r.hash}.png`)
+  )
+
+  let removed = 0
+  for (const n of pngs) {
+    if (!live.has(n)) {
+      try {
+        await rm(join(thumbDir(), n))
+        removed++
+      } catch {
+        /* en uso */
+      }
+    }
+  }
+  return removed
 }
 
 // --- Ventana oculta de render ----------------------------------------
@@ -111,7 +146,7 @@ function renderInWindow(
         jobs.set(job.id, { resolve, reject, timer })
         w.webContents.send('thumb:job', {
           id: job.id,
-          format: job.format === '3mf' ? '3mf' : 'stl',
+          format: job.format === '3mf' ? '3mf' : job.format === 'obj' ? 'obj' : 'stl',
           buffer,
           size
         })
@@ -152,7 +187,7 @@ async function processOne(f: PendingThumb): Promise<void> {
 
   const raw = await readFile(f.path)
 
-  // 3MF: intenta la miniatura embebida del slicer antes de renderizar.
+  // Formatos con miniatura embebida por el slicer: extraer sin renderizar.
   if (f.format === '3mf') {
     const png = extract3mfThumbnail(raw)
     if (png) {
@@ -160,6 +195,22 @@ async function processOne(f: PendingThumb): Promise<void> {
       setThumbResultByHash(f.hash, 'ready', cacheName)
       return
     }
+  }
+  if (f.format === 'gcode') {
+    const png = extractGcodeThumbnail(raw)
+    if (png) {
+      await writeFile(cachePath, png)
+      setThumbResultByHash(f.hash, 'ready', cacheName)
+    } else {
+      // Sin miniatura embebida y no renderizamos toolpaths: se deja sin preview.
+      setThumbResultByHash(f.hash, 'failed', null)
+    }
+    return
+  }
+  // STEP: se indexa pero no se genera vista previa (requiere kernel CAD).
+  if (f.format === 'step') {
+    setThumbResultByHash(f.hash, 'failed', null)
+    return
   }
 
   const ab = raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength)

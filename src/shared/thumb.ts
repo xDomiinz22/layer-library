@@ -4,7 +4,7 @@ import type { MeshMeta } from './types'
 
 export interface ThumbJob {
   id: number
-  format: 'stl' | '3mf'
+  format: 'stl' | '3mf' | 'obj'
   /** Contenido del archivo. */
   buffer: ArrayBuffer
   size: number

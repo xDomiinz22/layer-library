@@ -1,7 +1,13 @@
 import { readdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { ModelFormat } from '../shared/types'
-import { SCANNED_FORMATS } from '../shared/types'
+import { FORMAT_EXTENSIONS } from '../shared/types'
+
+const EXT_TO_FORMAT = new Map<string, ModelFormat>(
+  Object.entries(FORMAT_EXTENSIONS).flatMap(([fmt, exts]) =>
+    exts.map((e) => [e, fmt as ModelFormat] as const)
+  )
+)
 
 /** Carpetas que no aportan modelos y suelen ser enormes o cíclicas. */
 const SKIP_DIRS = new Set([
@@ -22,8 +28,7 @@ const SKIP_DIRS = new Set([
 export function formatOf(name: string): ModelFormat | null {
   const dot = name.lastIndexOf('.')
   if (dot < 0) return null
-  const ext = name.slice(dot + 1).toLowerCase() as ModelFormat
-  return SCANNED_FORMATS.includes(ext) ? ext : null
+  return EXT_TO_FORMAT.get(name.slice(dot + 1).toLowerCase()) ?? null
 }
 
 export interface WalkHit {

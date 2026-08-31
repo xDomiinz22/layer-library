@@ -329,6 +329,7 @@ export function App() {
               filters={filters}
               onChange={setFilters}
               roots={roots}
+              formats={(stats?.byFormat ?? []).map((x) => x.format)}
               cardSize={cardSize}
               onCardSize={setCardSize}
               count={fileTotal}

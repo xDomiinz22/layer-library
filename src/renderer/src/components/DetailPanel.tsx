@@ -86,7 +86,13 @@ export function DetailPanel({
               <img src={thumbUrl(f)!} alt={f.name} />
             ) : (
               <div className="detail-preview-ph">
-                {f.thumbStatus === 'pending' ? 'Generando miniatura…' : 'Sin miniatura'}
+                {f.thumbStatus === 'pending'
+                  ? 'Generando miniatura…'
+                  : f.format === 'step'
+                    ? 'STEP · vista previa no disponible'
+                    : f.format === 'gcode'
+                      ? 'G-code sin miniatura embebida'
+                      : 'Sin miniatura'}
               </div>
             )}
           </div>

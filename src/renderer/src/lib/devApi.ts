@@ -72,10 +72,12 @@ function fakeThumb(i: number): string {
   return `data:image/svg+xml,${encodeURIComponent(svg)}`
 }
 
+const FORMATS = ['stl', 'stl', 'stl', '3mf', '3mf', 'obj', 'gcode', 'step'] as const
+
 function mockFiles(n: number): ModelFile[] {
   return Array.from({ length: n }, (_, i) => {
     const name = NAMES[i % NAMES.length]
-    const fmt = i % 3 === 0 ? '3mf' : 'stl'
+    const fmt = FORMATS[i % FORMATS.length]
     const status: ModelFile['thumbStatus'] =
       i % 7 === 3 ? 'pending' : i % 11 === 5 ? 'failed' : 'ready'
     return {
@@ -141,19 +143,27 @@ export function installDevApi(): void {
     renameRoot: async () => {},
     rescanAll: async () => {},
     rescanRoot: async () => {},
-    getStats: async () => ({
-      totalFiles: 23944,
-      totalSize: 412_000_000_000,
-      byFormat: [
-        { format: 'stl', count: 19800, size: 300e9 },
-        { format: '3mf', count: 4144, size: 112e9 }
-      ],
-      pendingHash: 6210,
-      pendingThumb: 23944,
-      duplicateGroups: 380,
-      duplicateFiles: 512,
-      wastedBytes: 22_000_000_000
-    }),
+    getStats: async () => {
+      const byFmt: Record<string, { count: number; size: number }> = {}
+      for (const f of files) {
+        byFmt[f.format] ??= { count: 0, size: 0 }
+        byFmt[f.format].count++
+        byFmt[f.format].size += f.size
+      }
+      return {
+        totalFiles: files.length,
+        totalSize: files.reduce((s, f) => s + f.size, 0),
+        byFormat: Object.entries(byFmt).map(([format, v]) => ({
+          format: format as ModelFile['format'],
+          ...v
+        })),
+        pendingHash: 6,
+        pendingThumb: files.filter((f) => f.thumbStatus !== 'ready').length,
+        duplicateGroups: 3,
+        duplicateFiles: 3,
+        wastedBytes: 22_000_000
+      }
+    },
     listFiles: async (opts): Promise<ListFilesResult> => {
       const q = (opts.query ?? '').toLowerCase()
       let items = files.filter((f) => !q || f.name.toLowerCase().includes(q))

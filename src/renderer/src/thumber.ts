@@ -6,6 +6,7 @@
 import * as THREE from 'three'
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js'
 import { ThreeMFLoader } from 'three/examples/jsm/loaders/3MFLoader.js'
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js'
 import type { ThumbJob, ThumberBridge } from '@shared/thumb'
 import type { MeshMeta } from '@shared/types'
 
@@ -102,6 +103,18 @@ function parseStl(buffer: ArrayBuffer): THREE.Object3D {
   return new THREE.Mesh(geometry, stlMaterial)
 }
 
+function parseObj(buffer: ArrayBuffer): THREE.Object3D {
+  const text = new TextDecoder().decode(buffer)
+  const object = new OBJLoader().parse(text)
+  object.traverse((o) => {
+    const m = o as THREE.Mesh
+    if (!m.isMesh) return
+    if (!m.geometry.attributes.normal) m.geometry.computeVertexNormals()
+    m.material = stlMaterial
+  })
+  return object
+}
+
 function parse3mf(buffer: ArrayBuffer): THREE.Object3D {
   const object = new ThreeMFLoader().parse(buffer)
   object.traverse((o) => {
@@ -143,7 +156,12 @@ function handle(job: ThumbJob): void {
       window.thumber.fail(job.id, 'archivo demasiado grande')
       return
     }
-    object = job.format === 'stl' ? parseStl(job.buffer) : parse3mf(job.buffer)
+    object =
+      job.format === 'stl'
+        ? parseStl(job.buffer)
+        : job.format === 'obj'
+          ? parseObj(job.buffer)
+          : parse3mf(job.buffer)
     const meta = meshStats(object)
     frameAndRender(object)
 

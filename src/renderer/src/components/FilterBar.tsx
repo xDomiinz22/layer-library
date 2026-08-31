@@ -1,5 +1,4 @@
 import type { DateWindow, FileSort, LibraryRoot, ModelFormat } from '@shared/types'
-import { SCANNED_FORMATS } from '@shared/types'
 
 export interface Filters {
   formats: ModelFormat[]
@@ -39,6 +38,7 @@ export function FilterBar({
   filters,
   onChange,
   roots,
+  formats,
   cardSize,
   onCardSize,
   count
@@ -46,6 +46,7 @@ export function FilterBar({
   filters: Filters
   onChange: (f: Filters) => void
   roots: LibraryRoot[]
+  formats: ModelFormat[]
   cardSize: number
   onCardSize: (s: number) => void
   count: number
@@ -69,7 +70,7 @@ export function FilterBar({
   return (
     <div className="filterbar">
       <div className="chips">
-        {SCANNED_FORMATS.map((fmt) => (
+        {formats.map((fmt) => (
           <button
             key={fmt}
             className={`chip${filters.formats.includes(fmt) ? ' on' : ''}`}

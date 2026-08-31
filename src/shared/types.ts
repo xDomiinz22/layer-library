@@ -20,7 +20,17 @@ export interface LibraryRoot {
 
 export type ModelFormat = 'stl' | '3mf' | 'obj' | 'step' | 'gcode'
 
-export const SCANNED_FORMATS: ModelFormat[] = ['stl', '3mf']
+/** Formatos que el escáner indexa. */
+export const SCANNED_FORMATS: ModelFormat[] = ['stl', '3mf', 'obj', 'step', 'gcode']
+
+/** Extensiones aceptadas por formato (para el walker). */
+export const FORMAT_EXTENSIONS: Record<ModelFormat, string[]> = {
+  stl: ['stl'],
+  '3mf': ['3mf'],
+  obj: ['obj'],
+  step: ['step', 'stp'],
+  gcode: ['gcode', 'gco', 'g']
+}
 
 export type ThumbStatus = 'pending' | 'ready' | 'failed' | 'none'
 

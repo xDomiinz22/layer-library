@@ -12,6 +12,14 @@ const FORMAT_COLOR: Record<string, string> = {
   gcode: '#e0b341'
 }
 
+const GLYPH: Record<string, string> = {
+  stl: '△',
+  obj: '△',
+  '3mf': '◫',
+  step: '⬡',
+  gcode: '⌰'
+}
+
 export function thumbUrl(f: ModelFile): string | null {
   if (f.thumbStatus !== 'ready' || !f.thumbFile) return null
   if (f.thumbFile.startsWith('data:')) return f.thumbFile
@@ -29,7 +37,7 @@ function Thumb({ f }: { f: ModelFile }) {
     )
   return (
     <div className="card-img placeholder">
-      <span className="ph-glyph">{f.format === '3mf' ? '◫' : '△'}</span>
+      <span className="ph-glyph">{GLYPH[f.format] ?? '△'}</span>
     </div>
   )
 }
