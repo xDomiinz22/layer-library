@@ -14,6 +14,26 @@ export function formatCount(n: number): string {
   return n.toLocaleString('es')
 }
 
+export function formatDims(dim: [number, number, number] | null): string {
+  if (!dim) return '—'
+  const [x, y, z] = dim.map((n) => (n >= 100 ? Math.round(n) : Math.round(n * 10) / 10))
+  return `${x} × ${y} × ${z} mm`
+}
+
+export function formatTris(n: number | null): string {
+  if (n == null) return '—'
+  if (n < 1000) return `${n} tri`
+  if (n < 1_000_000) return `${(n / 1000).toFixed(n < 10_000 ? 1 : 0)} K tri`
+  return `${(n / 1_000_000).toFixed(1)} M tri`
+}
+
+export function fullDate(ms: number): string {
+  return new Date(ms).toLocaleString('es', {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  })
+}
+
 export function relativeTime(ms: number | null): string {
   if (!ms) return 'nunca'
   const diff = Date.now() - ms

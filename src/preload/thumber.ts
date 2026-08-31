@@ -6,7 +6,7 @@ const bridge: ThumberBridge = {
   onJob: (cb) => {
     ipcRenderer.on('thumb:job', (_e, job: ThumbJob) => cb(job))
   },
-  done: (id, pngBase64) => ipcRenderer.send('thumb:done', { id, pngBase64 }),
+  done: (id, pngBase64, meta) => ipcRenderer.send('thumb:done', { id, pngBase64, meta }),
   fail: (id, error) => ipcRenderer.send('thumb:fail', { id, error })
 }
 

@@ -3,6 +3,7 @@
  * Solo se instala en desarrollo y cuando no existe el puente real.
  */
 import type {
+  FileDetail,
   LayerApi,
   LibraryRoot,
   ListFilesResult,
@@ -86,7 +87,9 @@ function mockFiles(n: number): ModelFile[] {
       hash: i % 4 === 0 ? null : `deadbeef${i}`,
       thumbStatus: status,
       thumbFile: status === 'ready' ? fakeThumb(i) : null,
-      addedAt: Date.now() - i * 3.6e6
+      addedAt: Date.now() - i * 3.6e6,
+      triCount: status === 'ready' ? 12000 + i * 3100 : null,
+      dim: status === 'ready' ? [40 + i, 55 + (i % 7) * 4, 22 + (i % 5) * 6] : null
     } as ModelFile
   })
 }
@@ -132,10 +135,31 @@ export function installDevApi(): void {
     }),
     listFiles: async (opts): Promise<ListFilesResult> => {
       const q = (opts.query ?? '').toLowerCase()
-      const items = files.filter((f) => !q || f.name.toLowerCase().includes(q))
-      return { items: items.slice(0, opts.limit ?? 300), total: items.length }
+      let items = files.filter((f) => !q || f.name.toLowerCase().includes(q))
+      if (opts.formats && opts.formats.length) {
+        items = items.filter((f) => opts.formats!.includes(f.format))
+      }
+      if (opts.onlyDuplicates) items = items.filter((_, i) => i % 3 === 0)
+      return { items: items.slice(0, opts.limit ?? 100000), total: items.length }
+    },
+    getFileDetail: async (id): Promise<FileDetail | null> => {
+      const file = files.find((f) => f.id === id)
+      if (!file) return null
+      return {
+        file,
+        rootLabel: 'Descargas',
+        rootPath: 'Z:\\Modelos\\Descargas',
+        duplicates:
+          id % 3 === 0
+            ? [
+                { id: 999, path: 'E:\\backup\\copy.stl', relPath: 'backup/copy.stl', rootLabel: 'Disco E:' }
+              ]
+            : []
+      }
     },
     revealInExplorer: async () => {},
+    openFile: async () => {},
+    copyText: async (t) => navigator.clipboard?.writeText(t).catch(() => {}),
     appVersion: async () => '0.0.0-dev',
     onScanProgress: (cb) => {
       progressCbs.push(cb)

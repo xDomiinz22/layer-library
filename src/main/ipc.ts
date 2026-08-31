@@ -1,6 +1,6 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
 import type { ListFilesOptions } from '../shared/types'
-import { computeStats, listFiles } from './db'
+import { computeStats, getFileDetail, listFiles } from './db'
 import { addRootPath, listRoots, removeRoot, renameRoot } from './roots'
 import { scanAll, scanRoot } from './scanner'
 
@@ -32,8 +32,15 @@ export function registerIpc(): void {
 
   ipcMain.handle('stats:get', () => computeStats())
   ipcMain.handle('files:list', (_e, opts: ListFilesOptions) => listFiles(opts ?? {}))
+  ipcMain.handle('files:detail', (_e, id: number) => getFileDetail(id))
 
   ipcMain.handle('shell:reveal', (_e, path: string) => {
     shell.showItemInFolder(path)
+  })
+  ipcMain.handle('shell:open', async (_e, path: string) => {
+    await shell.openPath(path)
+  })
+  ipcMain.handle('clipboard:write', (_e, text: string) => {
+    clipboard.writeText(text)
   })
 }

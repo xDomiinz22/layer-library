@@ -11,6 +11,12 @@ import {
 } from './db'
 import { emitLibraryChanged, emitScanProgress } from './emit'
 import { extract3mfThumbnail } from './threemf'
+import type { MeshMeta } from '../shared/types'
+
+interface RenderResult {
+  png: Buffer
+  meta: MeshMeta | null
+}
 
 const MAX_BYTES = 220 * 1024 * 1024
 const JOB_TIMEOUT = 25_000
@@ -29,17 +35,20 @@ let win: BrowserWindow | null = null
 let ready: Promise<BrowserWindow> | null = null
 const jobs = new Map<
   number,
-  { resolve: (b: Buffer) => void; reject: (e: Error) => void; timer: NodeJS.Timeout }
+  { resolve: (r: RenderResult) => void; reject: (e: Error) => void; timer: NodeJS.Timeout }
 >()
 
 function wireIpcOnce(): void {
-  ipcMain.on('thumb:done', (_e, { id, pngBase64 }: { id: number; pngBase64: string }) => {
-    const j = jobs.get(id)
-    if (!j) return
-    clearTimeout(j.timer)
-    jobs.delete(id)
-    j.resolve(Buffer.from(pngBase64, 'base64'))
-  })
+  ipcMain.on(
+    'thumb:done',
+    (_e, { id, pngBase64, meta }: { id: number; pngBase64: string; meta: MeshMeta | null }) => {
+      const j = jobs.get(id)
+      if (!j) return
+      clearTimeout(j.timer)
+      jobs.delete(id)
+      j.resolve({ png: Buffer.from(pngBase64, 'base64'), meta: meta ?? null })
+    }
+  )
   ipcMain.on('thumb:fail', (_e, { id, error }: { id: number; error: string }) => {
     const j = jobs.get(id)
     if (!j) return
@@ -87,10 +96,14 @@ function getThumber(): Promise<BrowserWindow> {
   return ready
 }
 
-function renderInWindow(job: PendingThumb, buffer: ArrayBuffer, size: number): Promise<Buffer> {
+function renderInWindow(
+  job: PendingThumb,
+  buffer: ArrayBuffer,
+  size: number
+): Promise<RenderResult> {
   return getThumber().then(
     (w) =>
-      new Promise<Buffer>((resolve, reject) => {
+      new Promise<RenderResult>((resolve, reject) => {
         const timer = setTimeout(() => {
           jobs.delete(job.id)
           reject(new Error('timeout de render'))
@@ -151,9 +164,9 @@ async function processOne(f: PendingThumb): Promise<void> {
 
   const ab = raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength)
   try {
-    const png = await renderInWindow(f, ab, st.size)
+    const { png, meta } = await renderInWindow(f, ab, st.size)
     await writeFile(cachePath, png)
-    setThumbResultByHash(f.hash, 'ready', cacheName)
+    setThumbResultByHash(f.hash, 'ready', cacheName, meta)
   } catch {
     setThumbResultByHash(f.hash, 'failed', null)
   }

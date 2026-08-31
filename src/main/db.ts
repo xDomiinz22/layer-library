@@ -2,11 +2,14 @@ import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { app } from 'electron'
 import type {
+  DuplicateSibling,
+  FileDetail,
   FileSort,
   LibraryRoot,
   LibraryStats,
   ListFilesOptions,
   ListFilesResult,
+  MeshMeta,
   ModelFile,
   ModelFormat,
   RootKind,
@@ -73,6 +76,10 @@ function migrate(d: DatabaseSync): void {
     }
   }
   add('ALTER TABLE files ADD COLUMN scan_gen INTEGER')
+  add('ALTER TABLE files ADD COLUMN tri_count INTEGER')
+  add('ALTER TABLE files ADD COLUMN dim_x REAL')
+  add('ALTER TABLE files ADD COLUMN dim_y REAL')
+  add('ALTER TABLE files ADD COLUMN dim_z REAL')
 }
 
 export function initDb(): DatabaseSync {
@@ -279,13 +286,23 @@ export function findThumbByHash(hash: string): string | null {
 export function setThumbResultByHash(
   hash: string,
   status: 'ready' | 'failed',
-  file: string | null
+  file: string | null,
+  meta?: MeshMeta | null
 ): void {
-  getDb()
-    .prepare(
-      "UPDATE files SET thumb_status = ?, thumb_file = ? WHERE hash = ? AND thumb_status IN ('pending','failed')"
-    )
-    .run(status, file, hash)
+  if (meta) {
+    getDb()
+      .prepare(
+        `UPDATE files SET thumb_status = ?, thumb_file = ?, tri_count = ?, dim_x = ?, dim_y = ?, dim_z = ?
+         WHERE hash = ? AND thumb_status IN ('pending','failed')`
+      )
+      .run(status, file, meta.triCount, meta.dim[0], meta.dim[1], meta.dim[2], hash)
+  } else {
+    getDb()
+      .prepare(
+        "UPDATE files SET thumb_status = ?, thumb_file = ? WHERE hash = ? AND thumb_status IN ('pending','failed')"
+      )
+      .run(status, file, hash)
+  }
 }
 
 export function setThumbResult(id: number, status: 'ready' | 'failed', file: string | null): void {
@@ -307,6 +324,10 @@ interface FileRow {
   thumb_status: string
   thumb_file: string | null
   added_at: number
+  tri_count: number | null
+  dim_x: number | null
+  dim_y: number | null
+  dim_z: number | null
 }
 
 function rowToFile(r: FileRow): ModelFile {
@@ -322,7 +343,12 @@ function rowToFile(r: FileRow): ModelFile {
     hash: r.hash,
     thumbStatus: r.thumb_status as ModelFile['thumbStatus'],
     thumbFile: r.thumb_file,
-    addedAt: r.added_at
+    addedAt: r.added_at,
+    triCount: r.tri_count,
+    dim:
+      r.dim_x != null && r.dim_y != null && r.dim_z != null
+        ? [r.dim_x, r.dim_y, r.dim_z]
+        : null
   }
 }
 
@@ -339,8 +365,17 @@ function ftsQuery(raw: string): string | null {
 
 const SORT_SQL: Record<FileSort, string> = {
   recent: 'f.mtime_ms DESC',
+  oldest: 'f.mtime_ms ASC',
   name: 'f.name COLLATE NOCASE ASC',
-  size: 'f.size DESC'
+  size: 'f.size DESC',
+  'size-asc': 'f.size ASC'
+}
+
+const DATE_WINDOW_MS: Record<string, number> = {
+  '24h': 86_400_000,
+  '7d': 604_800_000,
+  '30d': 2_592_000_000,
+  '365d': 31_536_000_000
 }
 
 export function listFiles(opts: ListFilesOptions): ListFilesResult {
@@ -362,6 +397,15 @@ export function listFiles(opts: ListFilesOptions): ListFilesResult {
     where.push('f.root_id = ?')
     params.push(opts.rootId)
   }
+  if (opts.dateWindow && opts.dateWindow !== 'any' && DATE_WINDOW_MS[opts.dateWindow]) {
+    where.push('f.mtime_ms >= ?')
+    params.push(Date.now() - DATE_WINDOW_MS[opts.dateWindow])
+  }
+  if (opts.onlyDuplicates) {
+    where.push(
+      'f.hash IN (SELECT hash FROM files WHERE hash IS NOT NULL GROUP BY hash HAVING COUNT(*) > 1)'
+    )
+  }
 
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
   const total = (
@@ -370,15 +414,47 @@ export function listFiles(opts: ListFilesOptions): ListFilesResult {
       .get(...params) as unknown as { n: number }
   ).n
 
-  const sort = SORT_SQL[opts.sort ?? 'recent']
-  const limit = Math.min(Math.max(opts.limit ?? 200, 1), 1000)
+  const sort = SORT_SQL[opts.sort ?? 'recent'] ?? SORT_SQL.recent
+  const limit = Math.min(Math.max(opts.limit ?? 500, 1), 200000)
   const offset = Math.max(opts.offset ?? 0, 0)
 
   const rows = getDb()
-    .prepare(`SELECT f.* ${from} ${whereSql} ORDER BY ${sort} LIMIT ? OFFSET ?`)
+    .prepare(`SELECT f.* ${from} ${whereSql} ORDER BY ${sort}, f.id LIMIT ? OFFSET ?`)
     .all(...params, limit, offset) as unknown as FileRow[]
 
   return { items: rows.map(rowToFile), total }
+}
+
+export function getFileDetail(id: number): FileDetail | null {
+  const d = getDb()
+  const row = d.prepare('SELECT * FROM files WHERE id = ?').get(id) as unknown as
+    | FileRow
+    | undefined
+  if (!row) return null
+  const root = d
+    .prepare('SELECT label, path FROM roots WHERE id = ?')
+    .get(row.root_id) as unknown as { label: string; path: string } | undefined
+
+  let duplicates: DuplicateSibling[] = []
+  if (row.hash) {
+    duplicates = (
+      d
+        .prepare(
+          `SELECT f.id, f.path, f.rel_path AS relPath, r.label AS rootLabel
+           FROM files f JOIN roots r ON r.id = f.root_id
+           WHERE f.hash = ? AND f.id != ?
+           ORDER BY f.path`
+        )
+        .all(row.hash, id) as unknown as DuplicateSibling[]
+    ).map((x) => ({ ...x }))
+  }
+
+  return {
+    file: rowToFile(row),
+    rootLabel: root?.label ?? '—',
+    rootPath: root?.path ?? '',
+    duplicates
+  }
 }
 
 export function computeStats(): LibraryStats {

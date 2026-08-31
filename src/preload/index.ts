@@ -11,7 +11,10 @@ const api: LayerApi = {
   rescanRoot: (id) => ipcRenderer.invoke('scan:root', id),
   getStats: () => ipcRenderer.invoke('stats:get'),
   listFiles: (opts) => ipcRenderer.invoke('files:list', opts),
+  getFileDetail: (id) => ipcRenderer.invoke('files:detail', id),
   revealInExplorer: (path) => ipcRenderer.invoke('shell:reveal', path),
+  openFile: (path) => ipcRenderer.invoke('shell:open', path),
+  copyText: (text) => ipcRenderer.invoke('clipboard:write', text),
   appVersion: () => ipcRenderer.invoke('app:version'),
   onScanProgress: (cb: (p: ScanProgress) => void) => {
     const h = (_e: unknown, p: ScanProgress): void => cb(p)

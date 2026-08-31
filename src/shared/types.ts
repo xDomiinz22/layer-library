@@ -42,6 +42,16 @@ export interface ModelFile {
   thumbStatus: ThumbStatus
   thumbFile: string | null
   addedAt: number
+  /** Nº de triángulos de la malla (null si no se ha renderizado). */
+  triCount: number | null
+  /** Caja envolvente en unidades del archivo (mm normalmente); null si desconocida. */
+  dim: [number, number, number] | null
+}
+
+/** Metadatos de malla calculados al renderizar la miniatura. */
+export interface MeshMeta {
+  triCount: number
+  dim: [number, number, number]
 }
 
 export interface ScanProgress {
@@ -76,13 +86,17 @@ export interface LibraryStats {
   wastedBytes: number
 }
 
-export type FileSort = 'recent' | 'name' | 'size'
+export type FileSort = 'recent' | 'oldest' | 'name' | 'size' | 'size-asc'
+
+export type DateWindow = 'any' | '24h' | '7d' | '30d' | '365d'
 
 export interface ListFilesOptions {
   query?: string
   formats?: ModelFormat[]
   rootId?: number | null
   sort?: FileSort
+  dateWindow?: DateWindow
+  onlyDuplicates?: boolean
   limit?: number
   offset?: number
 }
@@ -90,6 +104,21 @@ export interface ListFilesOptions {
 export interface ListFilesResult {
   items: ModelFile[]
   total: number
+}
+
+export interface DuplicateSibling {
+  id: number
+  path: string
+  relPath: string
+  rootLabel: string
+}
+
+export interface FileDetail {
+  file: ModelFile
+  rootLabel: string
+  rootPath: string
+  /** Otros archivos con el mismo hash (sin incluir este). */
+  duplicates: DuplicateSibling[]
 }
 
 /** Contrato del puente expuesto en window.api (ver preload). */
@@ -103,7 +132,10 @@ export interface LayerApi {
   rescanRoot(id: number): Promise<void>
   getStats(): Promise<LibraryStats>
   listFiles(opts: ListFilesOptions): Promise<ListFilesResult>
+  getFileDetail(id: number): Promise<FileDetail | null>
   revealInExplorer(path: string): Promise<void>
+  openFile(path: string): Promise<void>
+  copyText(text: string): Promise<void>
   appVersion(): Promise<string>
   /** Eventos de progreso de escaneo/hashing. Devuelve función para desuscribir. */
   onScanProgress(cb: (p: ScanProgress) => void): () => void
