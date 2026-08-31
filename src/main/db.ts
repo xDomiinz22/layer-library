@@ -1,17 +1,17 @@
 import { join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 import { app } from 'electron'
-import Database from 'better-sqlite3'
 import type { LibraryRoot, RootKind } from '../shared/types'
 
-let db: Database.Database
+let db: DatabaseSync
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS roots (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  path       TEXT NOT NULL UNIQUE,
-  label      TEXT NOT NULL,
-  kind       TEXT NOT NULL DEFAULT 'local',
-  added_at   INTEGER NOT NULL,
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  path         TEXT NOT NULL UNIQUE,
+  label        TEXT NOT NULL,
+  kind         TEXT NOT NULL DEFAULT 'local',
+  added_at     INTEGER NOT NULL,
   last_scan_at INTEGER
 );
 
@@ -51,21 +51,21 @@ CREATE TRIGGER IF NOT EXISTS files_au AFTER UPDATE ON files BEGIN
 END;
 `
 
-export function initDb(): Database.Database {
+export function initDb(): DatabaseSync {
   const file = join(app.getPath('userData'), 'library.db')
-  db = new Database(file)
-  db.pragma('journal_mode = WAL')
-  db.pragma('foreign_keys = ON')
+  db = new DatabaseSync(file)
+  db.exec('PRAGMA journal_mode = WAL')
+  db.exec('PRAGMA foreign_keys = ON')
   db.exec(SCHEMA)
   return db
 }
 
-export function getDb(): Database.Database {
+export function getDb(): DatabaseSync {
   if (!db) throw new Error('DB no inicializada')
   return db
 }
 
-// --- Roots -------------------------------------------------------------------
+// --- Roots -----------------------------------------------------------------
 
 interface RootRow {
   id: number
@@ -105,17 +105,17 @@ export function updateRootLabel(id: number, label: string): void {
 }
 
 export function selectRootRows(): RootRow[] {
-  return getDb().prepare('SELECT * FROM roots ORDER BY added_at ASC').all() as RootRow[]
+  return getDb().prepare('SELECT * FROM roots ORDER BY added_at ASC').all() as unknown as RootRow[]
 }
 
 export function selectRootRow(id: number): RootRow | undefined {
-  return getDb().prepare('SELECT * FROM roots WHERE id = ?').get(id) as RootRow | undefined
+  return getDb().prepare('SELECT * FROM roots WHERE id = ?').get(id) as unknown as RootRow | undefined
 }
 
 export function countFilesByRoot(rootId: number): number {
   const row = getDb()
     .prepare('SELECT COUNT(*) AS n FROM files WHERE root_id = ?')
-    .get(rootId) as { n: number }
+    .get(rootId) as unknown as { n: number }
   return row.n
 }
 

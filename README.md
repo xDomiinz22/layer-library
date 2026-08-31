@@ -6,20 +6,20 @@ búsqueda instantánea, detección de duplicados y cola de impresión. Inspirada
 
 ## Stack
 
-- **Electron** + `electron-vite`
+- **Electron 38** + `electron-vite`
 - **React 19** + TypeScript (renderer)
-- **better-sqlite3** con FTS5 (índice y búsqueda)
+- **`node:sqlite`** con FTS5 (índice y búsqueda) — sin módulos nativos que compilar
 - **chokidar** (escaneo incremental + watch)
 - **three** (render de miniaturas STL en ventana oculta)
 
 ## Desarrollo
 
 ```bash
-npm install        # compila better-sqlite3 contra Electron (postinstall)
-npm run dev         # arranca la app con HMR
+npm install
+npm run dev
 ```
 
-Requisitos en Windows: VS Build Tools con toolset C++ y Python 3 (para node-gyp).
+Sin dependencias nativas: no hace falta toolchain de C++.
 
 ## Estructura
 
