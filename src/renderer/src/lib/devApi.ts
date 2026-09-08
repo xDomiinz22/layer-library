@@ -322,6 +322,10 @@ export function installDevApi(): void {
       }
     },
     appVersion: async () => '0.0.0-dev',
+    getUpdateState: async () => ({ phase: 'idle' as const }),
+    checkForUpdate: async () => {},
+    installUpdate: async () => {},
+    onUpdateState: () => () => {},
     onScanProgress: (cb) => {
       progressCbs.push(cb)
       return () => progressCbs.splice(progressCbs.indexOf(cb), 1)

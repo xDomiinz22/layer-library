@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { LayerApi, ScanProgress } from '../shared/types'
+import type { LayerApi, ScanProgress, UpdateState } from '../shared/types'
 
 const api: LayerApi = {
   listRoots: () => ipcRenderer.invoke('roots:list'),
@@ -18,6 +18,15 @@ const api: LayerApi = {
   trashFiles: (ids) => ipcRenderer.invoke('files:trash', ids),
   slicerAvailable: () => ipcRenderer.invoke('slicer:available'),
   sliceForStats: (id) => ipcRenderer.invoke('files:slice', id),
+
+  getUpdateState: () => ipcRenderer.invoke('updater:get'),
+  checkForUpdate: () => ipcRenderer.invoke('updater:check'),
+  installUpdate: () => ipcRenderer.invoke('updater:install'),
+  onUpdateState: (cb: (s: UpdateState) => void) => {
+    const h = (_e: unknown, s: UpdateState): void => cb(s)
+    ipcRenderer.on('updater:state', h)
+    return () => ipcRenderer.removeListener('updater:state', h)
+  },
 
   listDuplicateGroups: () => ipcRenderer.invoke('dupes:list'),
 

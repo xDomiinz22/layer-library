@@ -12,15 +12,39 @@ búsqueda instantánea, detección de duplicados y cola de impresión. Inspirada
 - **chokidar** (escaneo incremental + watch)
 - **three** (render de miniaturas STL en ventana oculta)
 
+## Instalación
+
+Descarga el instalador de la [última release](https://github.com/xDomiinz22/layer-library/releases/latest)
+y ejecútalo. Al no estar firmado, Windows SmartScreen avisará: **Más información →
+Ejecutar de todas formas**.
+
+A partir de ahí la app **se actualiza sola**: comprueba las releases de GitHub al
+arrancar (y cada 6 h), descarga la nueva versión en segundo plano y muestra en el
+pie de la barra lateral un botón para reiniciar e instalarla. Si no reinicias, se
+instala al cerrar la app.
+
 ## Desarrollo
 
 ```bash
 npm install
 npm run dev          # app con HMR
-npm run dist         # instalador NSIS -> dist/Layer Library-<v>-setup.exe
+npm run dist         # instalador local -> dist/Layer Library-<v>-setup.exe
 ```
 
 Sin dependencias nativas: no hace falta toolchain de C++.
+
+## Publicar una versión nueva
+
+1. Sube el número en `package.json` (`version`).
+2. Publica:
+
+   ```bash
+   GH_TOKEN=$(gh auth token) npm run release
+   ```
+
+   Compila y sube a GitHub una release con el `.exe`, su `.blockmap` y el
+   `latest.yml` que el auto-updater necesita. Revisa/edita las notas de la
+   release en GitHub después.
 
 ## Formatos
 

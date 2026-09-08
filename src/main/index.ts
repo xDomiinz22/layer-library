@@ -7,6 +7,7 @@ import { initDb } from './db'
 import { registerIpc } from './ipc'
 import { scanAll } from './scanner'
 import { pruneThumbnailCache, thumbFilePath } from './thumbnailer'
+import { initUpdater } from './updater'
 import { closeWatchers, syncWatchers } from './watcher'
 
 const isDev = !app.isPackaged
@@ -77,6 +78,8 @@ app.whenReady().then(() => {
   void syncWatchers()
   // Limpieza de miniaturas huérfanas (sin bloquear el arranque).
   setTimeout(() => void pruneThumbnailCache(), 8000)
+  // Auto-actualización contra las Releases de GitHub (no-op en desarrollo).
+  initUpdater()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

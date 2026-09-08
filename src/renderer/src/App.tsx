@@ -10,6 +10,7 @@ import { GridSkeleton } from './components/Skeleton'
 import { Toaster } from './components/Toaster'
 import { DialogHost } from './components/DialogHost'
 import { Logo } from './components/Logo'
+import { UpdateFoot } from './components/UpdateFoot'
 import {
   CloseIcon,
   CollectionsIcon,
@@ -286,10 +287,7 @@ export function App() {
           </button>
         </div>
 
-        <div className="side-foot">
-          <span>v{version || '0.0.0'}</span>
-          <span>100% local</span>
-        </div>
+        <UpdateFoot version={version} />
       </aside>
 
       <main className="main">

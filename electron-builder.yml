@@ -19,3 +19,7 @@ nsis:
   shortcutName: Layer Library
   installerIcon: build/icon.ico
   uninstallerIcon: build/icon.ico
+publish:
+  provider: github
+  owner: xDomiinz22
+  repo: layer-library

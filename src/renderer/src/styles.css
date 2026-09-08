@@ -501,6 +501,43 @@ button {
   justify-content: space-between;
 }
 
+.side-foot.upd {
+  align-items: center;
+  gap: 7px;
+  justify-content: flex-start;
+  color: var(--text-dim);
+}
+
+.upd-spin {
+  display: inline-flex;
+  color: var(--accent);
+  animation: pulse-soft 1.4s var(--ease-out) infinite;
+}
+
+@keyframes pulse-soft {
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.upd-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 7px 9px;
+  border-radius: 7px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--accent-ink);
+  background: var(--accent);
+  transition: filter var(--dur-1) var(--ease-out);
+}
+
+.upd-btn:hover {
+  filter: brightness(1.06);
+}
+
 /* ---- Main ------------------------------------------------------------- */
 
 .main {

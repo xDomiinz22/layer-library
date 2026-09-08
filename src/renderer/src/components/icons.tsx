@@ -165,6 +165,16 @@ export function RefreshIcon(props: IconProps) {
   )
 }
 
+export function DownloadIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M5 15.5V18a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 18v-2.5" />
+      <path d="M12 4v10.5" />
+      <path d="m7.5 10 4.5 4.5L16.5 10" />
+    </IconBase>
+  )
+}
+
 // Más: aparece con un giro de 90°.
 const plusTurn: Variants = {
   rest: { rotate: 0, scale: 1 },

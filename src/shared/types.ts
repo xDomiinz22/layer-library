@@ -79,6 +79,16 @@ export interface ModelFile {
   printSource: 'file' | 'sliced' | null
 }
 
+/** Estado de la auto-actualización (contra las Releases de GitHub). */
+export interface UpdateState {
+  phase: 'idle' | 'checking' | 'downloading' | 'ready' | 'error'
+  /** Versión nueva disponible / descargada. */
+  version?: string
+  /** Progreso de descarga 0-100. */
+  percent?: number
+  message?: string
+}
+
 /** Metadatos de malla calculados al renderizar la miniatura. */
 export interface MeshMeta {
   triCount: number
@@ -254,6 +264,15 @@ export interface LayerApi {
 
   /** true si hay un slicer (Bambu Studio / OrcaSlicer) disponible para relaminar. */
   slicerAvailable(): Promise<boolean>
+
+  /** Estado actual de la auto-actualización. */
+  getUpdateState(): Promise<UpdateState>
+  /** Fuerza una comprobación de actualizaciones. */
+  checkForUpdate(): Promise<void>
+  /** Reinicia e instala la actualización ya descargada. */
+  installUpdate(): Promise<void>
+  /** Cambios en el estado de la auto-actualización. Devuelve función para desuscribir. */
+  onUpdateState(cb: (s: UpdateState) => void): () => void
   /** Relamina un 3MF/gcode con el slicer para obtener tiempo y gramos. En cola, uno a uno. */
   sliceForStats(id: number): Promise<{ ok: boolean; error?: string }>
 
