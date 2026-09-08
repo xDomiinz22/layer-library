@@ -104,7 +104,8 @@ function mockFiles(n: number): ModelFile[] {
       filamentG: hasPrint ? plates * (14 + (i % 9) * 7.5) : null,
       filamentTypes: hasPrint ? FIL_TYPES.slice(0, 1 + (i % 3)) : [],
       filamentColors: hasPrint ? FIL_COLORS.slice(i % 3, (i % 3) + 1 + (i % 4)) : [],
-      plateCount: fmt === '3mf' && hasPrint ? plates : null
+      plateCount: fmt === '3mf' && hasPrint ? plates : null,
+      printSource: hasPrint ? 'file' : null
     } as ModelFile
   })
 }
@@ -202,6 +203,19 @@ export function installDevApi(): void {
         collectionIds: collFiles.filter((cf) => cf.fileId === id).map((cf) => cf.cid),
         inQueue: queue.some((q) => q.file.id === id)
       }
+    },
+    slicerAvailable: async () => true,
+    sliceForStats: async (id) => {
+      await new Promise((r) => setTimeout(r, 1200))
+      const fl = files.find((x) => x.id === id)
+      if (fl) {
+        fl.printSeconds = 3600 + (id % 5) * 900
+        fl.filamentG = 22 + (id % 7) * 6
+        fl.plateCount = fl.plateCount ?? 1
+        fl.printSource = 'sliced'
+        fire()
+      }
+      return { ok: true }
     },
     revealInExplorer: async () => {},
     openFile: async () => {},

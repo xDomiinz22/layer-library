@@ -14,6 +14,7 @@ import {
   renameCollection,
   setFileCollection
 } from './collections'
+import { sliceForStats, slicerAvailable } from './slicer'
 import {
   addToQueue,
   createPrinter,
@@ -55,6 +56,8 @@ export function registerIpc(): void {
   ipcMain.handle('files:list', (_e, opts: ListFilesOptions) => listFiles(opts ?? {}))
   ipcMain.handle('files:detail', (_e, id: number) => getFileDetail(id))
   ipcMain.handle('files:trash', (_e, ids: number[]) => trashFiles(ids))
+  ipcMain.handle('slicer:available', () => slicerAvailable())
+  ipcMain.handle('files:slice', (_e, id: number) => sliceForStats(id))
 
   ipcMain.handle('dupes:list', () => listDuplicateGroups())
 

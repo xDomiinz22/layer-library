@@ -114,6 +114,7 @@ function migrate(d: DatabaseSync): void {
   add('ALTER TABLE files ADD COLUMN filament_types TEXT')
   add('ALTER TABLE files ADD COLUMN filament_colors TEXT')
   add('ALTER TABLE files ADD COLUMN plate_count INTEGER')
+  add('ALTER TABLE files ADD COLUMN print_source TEXT')
 }
 
 export function initDb(): DatabaseSync {
@@ -388,10 +389,11 @@ export interface PrintInfo {
 
 /** Guarda los metadatos de impresión para todos los archivos con ese hash. */
 export function setPrintInfoByHash(hash: string, info: PrintInfo | null): void {
+  const hasNums = !!info && (info.seconds != null || info.grams != null)
   getDb()
     .prepare(
       `UPDATE files SET print_status = 'done', print_seconds = ?, filament_g = ?,
-         filament_types = ?, filament_colors = ?, plate_count = ?
+         filament_types = ?, filament_colors = ?, plate_count = ?, print_source = ?
        WHERE hash = ? AND print_status = 'pending'`
     )
     .run(
@@ -400,8 +402,28 @@ export function setPrintInfoByHash(hash: string, info: PrintInfo | null): void {
       info && info.types.length ? info.types.join(',') : null,
       info && info.colors.length ? info.colors.join(',') : null,
       info?.plates ?? null,
+      hasNums ? 'file' : null,
       hash
     )
+}
+
+/**
+ * Guarda tiempo/gramos/platos obtenidos relaminando con el slicer. Sobrescribe
+ * aunque la fila ya estuviera 'done' (normalmente lo estaba, con valores null).
+ * Conserva tipos y colores de filamento ya detectados del archivo.
+ */
+export function setSlicedPrintInfoByHash(
+  hash: string,
+  info: { seconds: number | null; grams: number | null; plates: number | null }
+): void {
+  getDb()
+    .prepare(
+      `UPDATE files SET print_status = 'done', print_source = 'sliced',
+         print_seconds = ?, filament_g = ?,
+         plate_count = COALESCE(?, plate_count)
+       WHERE hash = ?`
+    )
+    .run(info.seconds, info.grams, info.plates, hash)
 }
 
 // --- Files: lectura / stats -------------------------------------------
@@ -428,6 +450,7 @@ interface FileRow {
   filament_types: string | null
   filament_colors: string | null
   plate_count: number | null
+  print_source: string | null
 }
 
 function splitList(s: string | null): string[] {
@@ -457,7 +480,8 @@ export function rowToFile(r: FileRow): ModelFile {
     filamentG: r.filament_g,
     filamentTypes: splitList(r.filament_types),
     filamentColors: splitList(r.filament_colors),
-    plateCount: r.plate_count
+    plateCount: r.plate_count,
+    printSource: (r.print_source as ModelFile['printSource']) ?? null
   }
 }
 

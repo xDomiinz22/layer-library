@@ -18,6 +18,7 @@ import {
   FolderOpenIcon,
   OpenIcon,
   PlusIcon,
+  RefreshIcon,
   TrashIcon
 } from './icons'
 
@@ -36,7 +37,13 @@ export function DetailPanel({
   const [collections, setCollections] = useState<Collection[]>([])
   const [copied, setCopied] = useState(false)
   const [showColl, setShowColl] = useState(false)
+  const [slicerOk, setSlicerOk] = useState(false)
+  const [slicing, setSlicing] = useState(false)
   const closeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  useEffect(() => {
+    void window.api.slicerAvailable().then(setSlicerOk)
+  }, [])
 
   useEffect(() => {
     if (fileId != null) {
@@ -94,6 +101,23 @@ export function DetailPanel({
     await window.api.setFileCollection(f.id, cid, member)
     await load()
   }
+  const runSlice = async (): Promise<void> => {
+    if (!f || slicing) return
+    setSlicing(true)
+    toast(`Laminando “${f.name}”… puede tardar un par de minutos`)
+    try {
+      const r = await window.api.sliceForStats(f.id)
+      if (r.ok) {
+        toast('Tiempo y gramos calculados')
+        await load()
+      } else {
+        toast(r.error ?? 'No se pudo laminar', 'danger')
+      }
+    } finally {
+      setSlicing(false)
+    }
+  }
+
   const trash = async (): Promise<void> => {
     if (!f) return
     const n = await window.api.trashFiles([f.id])
@@ -163,6 +187,9 @@ export function DetailPanel({
                       {f.plateCount && f.plateCount > 1 && (
                         <span className="kv-note"> · {f.plateCount} platos</span>
                       )}
+                      {f.printSource === 'sliced' && (
+                        <span className="kv-note"> · relaminado</span>
+                      )}
                     </dd>
                   </>
                 )}
@@ -196,6 +223,16 @@ export function DetailPanel({
                 <dt>Huella</dt>
                 <dd className="kv-hash">{f.hash ? f.hash.slice(0, 24) + '…' : 'pendiente'}</dd>
               </dl>
+
+              {f.format === '3mf' &&
+                f.printSeconds == null &&
+                f.filamentG == null &&
+                slicerOk && (
+                  <button className="btn slice-btn" onClick={runSlice} disabled={slicing}>
+                    <RefreshIcon size={14} plain />
+                    {slicing ? 'Laminando…' : 'Calcular tiempo y peso'}
+                  </button>
+                )}
 
               <div className="detail-actions">
                 <button className="btn" onClick={() => window.api.openFile(f.path)}>

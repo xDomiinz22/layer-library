@@ -40,6 +40,7 @@ export type ScanPhase =
   | 'hashing'
   | 'thumbnails'
   | 'metadata'
+  | 'slicing'
   | 'done'
   | 'error'
 
@@ -73,6 +74,9 @@ export interface ModelFile {
   filamentColors: string[]
   /** Nº de platos del 3MF (null para gcode / sin datos). */
   plateCount: number | null
+  /** Origen de los datos de impresión: 'file' (leídos del 3MF/gcode) o 'sliced'
+   * (calculados relaminando con el slicer). null si no hay datos. */
+  printSource: 'file' | 'sliced' | null
 }
 
 /** Metadatos de malla calculados al renderizar la miniatura. */
@@ -247,6 +251,11 @@ export interface LayerApi {
   removeFromQueue(itemId: number): Promise<void>
   updateQueueItem(itemId: number, patch: { printerId?: number | null; printed?: boolean }): Promise<void>
   moveQueueItem(itemId: number, direction: 'up' | 'down'): Promise<void>
+
+  /** true si hay un slicer (Bambu Studio / OrcaSlicer) disponible para relaminar. */
+  slicerAvailable(): Promise<boolean>
+  /** Relamina un 3MF/gcode con el slicer para obtener tiempo y gramos. En cola, uno a uno. */
+  sliceForStats(id: number): Promise<{ ok: boolean; error?: string }>
 
   appVersion(): Promise<string>
   /** Eventos de progreso de escaneo/hashing. Devuelve función para desuscribir. */

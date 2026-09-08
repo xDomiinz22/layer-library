@@ -16,6 +16,8 @@ const api: LayerApi = {
   openFile: (path) => ipcRenderer.invoke('shell:open', path),
   copyText: (text) => ipcRenderer.invoke('clipboard:write', text),
   trashFiles: (ids) => ipcRenderer.invoke('files:trash', ids),
+  slicerAvailable: () => ipcRenderer.invoke('slicer:available'),
+  sliceForStats: (id) => ipcRenderer.invoke('files:slice', id),
 
   listDuplicateGroups: () => ipcRenderer.invoke('dupes:list'),
 

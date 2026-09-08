@@ -177,6 +177,7 @@ export function App() {
     progress?.phase === 'hashing' ||
     progress?.phase === 'thumbnails' ||
     progress?.phase === 'metadata' ||
+    progress?.phase === 'slicing' ||
     (stats != null &&
       (stats.pendingHash > 0 || stats.pendingThumb > 0 || stats.pendingMeta > 0))
   const pct =
