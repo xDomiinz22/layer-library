@@ -1,6 +1,5 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useResizeObserver } from '../lib/useResizeObserver'
 import type { ModelFile } from '@shared/types'
 import { formatDuration, formatGrams } from '../lib/format'
 import { FormatGlyph } from './icons'
@@ -41,32 +40,84 @@ const GAP = 16
 const CARD_GAP = 9 // hueco miniatura → nombre
 const NAME_LINE = 19 // altura de la línea del nombre
 const ROW_PAD_B = 18 // .grid-row padding-bottom
+const PAD = 18 // .grid-scroll padding
+const DETAIL_W = 360 // --detail-w
+const DETAIL_MIN_VW = 1180 // el hueco solo se reserva en ventanas anchas (media query)
+
+/** Ancho de contenido "real" del scroller: su clientWidth no cambia aunque el
+ *  padding-right se anime, así que la rejilla no se comprime durante la
+ *  transición del panel. Solo se recalcula al abrir/cerrar el panel o al
+ *  redimensionar la ventana, nunca fotograma a fotograma. */
+function useShellWidth(ref: React.RefObject<HTMLElement | null>): number {
+  const [w, setW] = useState(0)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const read = (): void => setW(el.clientWidth)
+    read()
+    const ro = new ResizeObserver(read)
+    ro.observe(el)
+    window.addEventListener('resize', read)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', read)
+    }
+  }, [ref])
+  return w
+}
 
 export function ModelGrid({
   files,
   size,
   selectedId,
-  onSelect
+  detailOpen,
+  onSelect,
+  onOpen
 }: {
   files: ModelFile[]
   size: number
   selectedId: number | null
+  detailOpen: boolean
   onSelect: (f: ModelFile) => void
+  onOpen: (f: ModelFile) => void
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
-  const innerRef = useRef<HTMLDivElement>(null)
-  // `innerRef` mide el ancho de contenido real (descuenta padding y el hueco
-  // reservado para el panel de detalle).
-  const inner = useResizeObserver(innerRef)
+  const clickTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const shellW = useShellWidth(scrollRef)
 
-  // Si el ancho medido es implausiblemente pequeño (p. ej. mientras el panel de
-  // detalle reajusta el layout) se usa `size` para no colapsar la rejilla.
-  const w = inner > 60 ? inner : size
-  const cols = Math.max(1, Math.floor((w + GAP) / (size + GAP)))
-  // Altura real de fila = miniatura cuadrada (según ancho de columna) + nombre + hueco.
-  const thumbH = Math.max((w - (cols - 1) * GAP) / cols, size * 0.6)
+  useEffect(() => () => clearTimeout(clickTimer.current), [])
+
+  const wide = typeof window !== 'undefined' && window.innerWidth >= DETAIL_MIN_VW
+
+  // Al ABRIR se espera a que el panel termine de entrar antes de encoger la
+  // rejilla, así el reajuste de columnas (6→4) queda oculto tras el panel ya
+  // colocado y las tarjetas visibles nunca se comprimen. Al CERRAR se recupera
+  // el ancho al instante: las columnas reaparecen conforme el panel se retira.
+  const [reserved, setReserved] = useState(false)
+  useEffect(() => {
+    if (detailOpen && wide) {
+      const t = setTimeout(() => setReserved(true), 460)
+      return () => clearTimeout(t)
+    }
+    setReserved(false)
+    return undefined
+  }, [detailOpen, wide])
+
+  const reserve = reserved ? DETAIL_W + 16 : 0
+  const avail = Math.max((shellW || size + PAD * 2) - PAD * 2 - reserve, size)
+  const cols = Math.max(1, Math.floor((avail + GAP) / (size + GAP)))
+  const thumbH = Math.max((avail - (cols - 1) * GAP) / cols, size * 0.6)
   const rowH = Math.round(thumbH + CARD_GAP + NAME_LINE + ROW_PAD_B)
   const rowCount = Math.ceil(files.length / cols)
+
+  const handleClick = (f: ModelFile): void => {
+    clearTimeout(clickTimer.current)
+    clickTimer.current = setTimeout(() => onSelect(f), 220)
+  }
+  const handleDouble = (f: ModelFile): void => {
+    clearTimeout(clickTimer.current)
+    onOpen(f)
+  }
 
   const virt = useVirtualizer({
     count: rowCount,
@@ -82,7 +133,10 @@ export function ModelGrid({
 
   return (
     <div className="grid-scroll" ref={scrollRef}>
-      <div className="grid-inner" ref={innerRef} style={{ height: virt.getTotalSize() }}>
+      <div
+        className="grid-inner"
+        style={{ height: virt.getTotalSize(), width: avail || undefined }}
+      >
         {virt.getVirtualItems().map((vr) => {
           const start = vr.index * cols
           const rowFiles = files.slice(start, start + cols)
@@ -97,11 +151,11 @@ export function ModelGrid({
             >
               {rowFiles.map((f) => (
                 <button
-                  className={`card${f.id === selectedId ? ' sel' : ''}`}
+                  className={`card${f.id === selectedId ? ' on' : ''}`}
                   key={f.id}
                   title={f.path}
-                  onClick={() => onSelect(f)}
-                  onDoubleClick={() => window.api.revealInExplorer(f.path)}
+                  onClick={() => handleClick(f)}
+                  onDoubleClick={() => handleDouble(f)}
                 >
                   <div className="card-thumb">
                     <Thumb f={f} />

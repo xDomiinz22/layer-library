@@ -432,7 +432,9 @@ export function App() {
                 files={files}
                 size={cardSize}
                 selectedId={selectedId}
+                detailOpen={selectedId != null}
                 onSelect={(f) => setSelectedId((cur) => (cur === f.id ? null : f.id))}
+                onOpen={(f) => window.api.openFile(f.path)}
               />
             )}
           </div>

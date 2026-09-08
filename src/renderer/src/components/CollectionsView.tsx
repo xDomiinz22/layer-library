@@ -137,7 +137,9 @@ export function CollectionsView({
                 files={files}
                 size={cardSize}
                 selectedId={selectedFileId}
+                detailOpen={selectedFileId != null}
                 onSelect={(f) => onSelectFile(f.id)}
+                onOpen={(f) => window.api.openFile(f.path)}
               />
             )}
           </>

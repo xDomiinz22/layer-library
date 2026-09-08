@@ -513,27 +513,14 @@ button {
 
 /* Reserve room for the inspector drawer so it never hides content — pero solo
    cuando la ventana es ancha; en pantallas estrechas el cajón se superpone al
-   borde derecho de la rejilla. El hueco se anima al mismo ritmo que el cajón
-   para que el contenido acompañe al panel en vez de dar un salto seco. */
-.grid-scroll,
-.dupes-list,
-.queue-body {
-  transition: padding-right var(--dur-4) var(--ease-drawer);
-}
-
+   borde derecho. La rejilla NO comprime sus tarjetas al abrir el panel: fija su
+   ancho de contenido de golpe (ver ModelGrid) y el panel entra por encima del
+   hueco. En las listas simples el hueco cambia sin más. */
 @media (min-width: 1180px) {
   .app.with-detail .grid-scroll,
   .app.with-detail .dupes-list,
   .app.with-detail .queue-body {
     padding-right: calc(16px + var(--detail-w));
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .grid-scroll,
-  .dupes-list,
-  .queue-body {
-    transition: none;
   }
 }
 
@@ -948,6 +935,9 @@ select.sel option::checkmark {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* Al cerrar el panel, .grid-inner recupera su ancho completo de golpe
+     mientras el hueco se encoge: recórtalo en vez de sacar scroll horizontal. */
+  overflow-x: clip;
   padding: 18px;
   animation: fade-in var(--dur-2) var(--ease-out);
 }
@@ -997,7 +987,7 @@ select.sel option::checkmark {
   box-shadow: var(--shadow-2);
 }
 
-.card.sel .card-thumb {
+.card.on .card-thumb {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-soft), var(--shadow-2);
 }
@@ -1152,7 +1142,7 @@ img.card-img {
 }
 
 .card:hover .card-name,
-.card.sel .card-name {
+.card.on .card-name {
   color: var(--text);
 }
 
