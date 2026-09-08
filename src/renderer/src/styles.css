@@ -1912,12 +1912,14 @@ h2,
   }
 }
 
-/* Duplicate / queue / collection rows: gentle sibling stagger */
+/* Duplicate / queue / collection rows: gentle sibling stagger.
+   El retardo se limita a los primeros elementos para que sea un barrido
+   rápido y no una entrada que tarda segundos con listas largas. */
 .dupe-group,
 .q-row,
 .coll-item {
   animation: rise-in var(--dur-3) var(--ease-out-quint) both;
-  animation-delay: calc(var(--i, 0) * 35ms);
+  animation-delay: calc(min(var(--i, 0), 6) * 26ms);
 }
 
 .dupe-group {

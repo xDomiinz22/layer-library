@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "layout-transition",
+        "value": "*",
+        "files": [
+          "src/renderer/src/styles.css"
+        ],
+        "createdAt": "2026-09-08T15:29:11.059Z",
+        "reason": "User confirmed: pidió que el hueco reservado del cajón de detalle acompañe al panel en vez de dar un salto seco; la transición de padding-right es intencional y única"
+      }
+    ]
+  }
+}

@@ -101,7 +101,9 @@ export function DuplicatesView() {
                   <TrashIcon size={13} plain />
                   {busy === g.hash
                     ? 'Moviendo…'
-                    : `Mover las otras ${g.members.length - 1} a la papelera`}
+                    : g.members.length - 1 === 1
+                      ? 'Mover la otra copia a la papelera'
+                      : `Mover las otras ${g.members.length - 1} a la papelera`}
                 </button>
               </div>
             </div>
