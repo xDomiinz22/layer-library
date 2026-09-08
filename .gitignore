@@ -3,6 +3,8 @@ out
 dist
 *.log
 .DS_Store
+.impeccable
+.claude
 
 test-fixtures
 *.tsbuildinfo
