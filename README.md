@@ -18,20 +18,7 @@ Indexar es una cadena de cuatro etapas que se encadenan solas: cada una llama a 
 siguiente en su última línea, sin orquestador. Todas son idempotentes y se
 auto-deduplican, así que da igual cuántas veces se disparen.
 
-```mermaid
-flowchart TD
-    A["Carpetas vigiladas<br/>local, USB o NAS"] --> B["scanner.ts<br/>recorre y registra cambios"]
-    B --> C["hasher.ts<br/>huella sha256 del contenido"]
-    C --> D["thumbnailer.ts<br/>miniatura: PNG del slicer o render 3D"]
-    D --> E["metadata.ts<br/>tiempo, gramos y colores"]
-    E --> F[("library.db<br/>SQLite + FTS5")]
-    W["watcher.ts · chokidar"] -.->|archivo nuevo o modificado| C
-
-    classDef fuente fill:#F1EFE8,stroke:#5F5E5A,color:#2C2C2A
-    classDef etapa fill:#E1F5EE,stroke:#0F6E56,color:#04342C
-    class A,W,F fuente
-    class B,C,D,E etapa
-```
+![Pipeline de indexado](docs/pipeline.svg)
 
 Dos atajos que no se ven en el diagrama:
 
@@ -92,34 +79,7 @@ renderer solo pinta, y `preload` es la única puerta entre ambos. Las llamadas v
 hacia la derecha y los eventos (`library:changed`, `scan:progress`) vuelven, que es
 lo que hace que las miniaturas aparezcan solas sin refrescar nada.
 
-```mermaid
-flowchart LR
-    subgraph main["Proceso principal · Node"]
-        DB["Índice<br/>db.ts · SQLite + FTS5"]
-        PIPE["Pipeline<br/>escaneo → metadatos"]
-        SVC["Servicios<br/>cola, duplicados, updater"]
-    end
-
-    PRE["preload<br/>expone window.api"]
-
-    subgraph rend["Renderer · React 19"]
-        LIB["Biblioteca<br/>rejilla + detalle"]
-        DUP["Duplicados<br/>agrupados por huella"]
-        COL["Colecciones<br/>y cola por impresora"]
-    end
-
-    main <--> PRE
-    PRE <--> rend
-
-    style main fill:#EEEDFE,stroke:#534AB7,color:#26215C
-    style rend fill:#FAECE7,stroke:#993C1D,color:#4A1B0C
-    classDef mod fill:#FFFFFF,stroke:#534AB7,color:#26215C
-    classDef vista fill:#FFFFFF,stroke:#993C1D,color:#4A1B0C
-    classDef puente fill:#F1EFE8,stroke:#5F5E5A,color:#2C2C2A
-    class DB,PIPE,SVC mod
-    class LIB,DUP,COL vista
-    class PRE puente
-```
+![Arquitectura por capas](docs/architecture.svg)
 
 ```
 src/
