@@ -4,6 +4,26 @@ Biblioteca **local** para archivos de impresión 3D (STL, 3MF, …): miniaturas 
 búsqueda instantánea, detección de duplicados y cola de impresión. Inspirada en
 [LayerMate](https://www.layermate.app/). Nada sale de tu equipo.
 
+## Capturas
+
+La biblioteca, con el panel de detalle abierto. El tiempo estimado, los gramos y los
+colores de filamento salen del propio 3MF, sumando todos los platos.
+
+![La rejilla con el panel de detalle abierto](docs/capturas/biblioteca.png)
+
+Los duplicados se agrupan por huella sha256, así que caza la misma pieza aunque esté
+con otro nombre o en otra biblioteca. Eliges cuál conservar y el resto se va a la
+papelera del sistema.
+
+![Duplicados agrupados por huella](docs/capturas/duplicados.png)
+
+La cola reparte los trabajos por impresora.
+
+![Cola de impresión con un carril por impresora](docs/capturas/cola.png)
+
+> Las capturas están hechas con archivos de prueba: por eso las miniaturas son
+> formas genéricas y no modelos de verdad.
+
 ## Stack
 
 - **Electron 38** + `electron-vite`
