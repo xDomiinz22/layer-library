@@ -32,6 +32,14 @@ La cola reparte los trabajos por impresora.
 - **chokidar** (escaneo incremental + watch)
 - **three** (render de miniaturas STL en ventana oculta)
 
+## Flujo de uso
+
+Un archivo entra al añadir una carpeta, el pipeline lo indexa solo, y desde la
+biblioteca buscable se organiza en duplicados, cola de impresión o colecciones —
+con un relaminado bajo demanda si a alguno le faltan tiempo o gramos.
+
+![Flujo de uso de Layer Library](docs/flow.svg)
+
 ## Cómo funciona
 
 Indexar es una cadena de cuatro etapas que se encadenan solas: cada una llama a la
