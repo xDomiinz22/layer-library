@@ -51,11 +51,17 @@ Dos atajos que no se ven en el diagrama:
 
 ## Instalación
 
-Descarga el instalador de la [última release](https://github.com/xDomiinz22/layer-library/releases/latest)
-y ejecútalo.
+**Windows 10 y 11** (`x64`) — descarga el instalador de la [última
+release](https://github.com/xDomiinz22/layer-library/releases/latest) y ejecútalo.
+Al final del asistente hay una casilla **"Crear acceso directo en el
+escritorio"**, marcada por defecto — el acceso directo en el menú inicio se
+crea siempre, el del escritorio ahora es opcional.
 
-Al abrirlo, Windows muestra una pantalla azul **"Windows protegió tu PC"** —
-es normal, pasa con cualquier instalador nuevo sin firma digital (no es un
+**Linux** — mismo enlace de arriba, `.AppImage`: dale permiso de ejecución
+(`chmod +x`) y ábrelo, no hace falta instalar nada más.
+
+Al abrirlo en Windows, muestra una pantalla azul **"Windows protegió tu PC"**
+— es normal, pasa con cualquier instalador nuevo sin firma digital (no es un
 antivirus detectando nada malo, solo que Windows todavía no "conoce" este
 programa). Para continuar: pulsa **Más información** (el enlace pequeño
 arriba, no el botón grande de abajo) y luego **Ejecutar de todas formas**.

@@ -15,10 +15,20 @@ nsis:
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
-  createDesktopShortcut: true
+  # La creación automática y silenciosa se apaga a propósito — la casilla
+  # de build/installer.nsh (customFinishPage) es la única vía ahora, para
+  # que sea una elección visible en vez de algo que ya pasó sin avisar.
+  createDesktopShortcut: false
   shortcutName: Layer Library
   installerIcon: build/icon.ico
   uninstallerIcon: build/icon.ico
+  include: build/installer.nsh
+linux:
+  target:
+    - AppImage
+  icon: build/icon.png
+  category: Utility
+  artifactName: ${productName}-${version}.${ext}
 publish:
   provider: github
   owner: xDomiinz22
