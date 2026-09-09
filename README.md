@@ -52,8 +52,14 @@ Dos atajos que no se ven en el diagrama:
 ## Instalación
 
 Descarga el instalador de la [última release](https://github.com/xDomiinz22/layer-library/releases/latest)
-y ejecútalo. Al no estar firmado, Windows SmartScreen avisará: **Más información →
-Ejecutar de todas formas**.
+y ejecútalo.
+
+Al abrirlo, Windows muestra una pantalla azul **"Windows protegió tu PC"** —
+es normal, pasa con cualquier instalador nuevo sin firma digital (no es un
+antivirus detectando nada malo, solo que Windows todavía no "conoce" este
+programa). Para continuar: pulsa **Más información** (el enlace pequeño
+arriba, no el botón grande de abajo) y luego **Ejecutar de todas formas**.
+Solo hace falta la primera vez que se instala en cada equipo.
 
 A partir de ahí la app **se actualiza sola**: comprueba las releases de GitHub al
 arrancar (y cada 6 h), descarga la nueva versión en segundo plano y muestra en el
