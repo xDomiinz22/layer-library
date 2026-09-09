@@ -71,6 +71,10 @@ app.whenReady().then(() => {
   initDb()
   registerThumbProtocol()
   registerIpc()
+  // Antes que createWindow(): registra los handlers IPC de updater:* para
+  // que existan ya cuando el renderer monte y pida el estado inicial
+  // (UpdateFoot.tsx llama a getUpdateState() nada más montar).
+  initUpdater()
   createWindow()
 
   // Indexado y vigilancia en segundo plano.
@@ -78,8 +82,6 @@ app.whenReady().then(() => {
   void syncWatchers()
   // Limpieza de miniaturas huérfanas (sin bloquear el arranque).
   setTimeout(() => void pruneThumbnailCache(), 8000)
-  // Auto-actualización contra las Releases de GitHub (no-op en desarrollo).
-  initUpdater()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
