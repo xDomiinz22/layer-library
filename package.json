@@ -1,6 +1,6 @@
 {
   "name": "layer-library",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Biblioteca local de archivos de impresión 3D con miniaturas y búsqueda instantánea",
   "main": "./out/main/index.js",
   "author": "domingorp2002",

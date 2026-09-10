@@ -17,7 +17,16 @@ win:
 nsis:
   oneClick: false
   perMachine: false
-  allowToChangeInstallationDirectory: true
+  # Sin página de "elegir carpeta" a propósito. Con perMachine: false el
+  # instalador corre SIN permisos de administrador (RequestExecutionLevel
+  # user), así que si el usuario elegía C:\Program Files no podía escribir
+  # allí y la instalación moría con "error abriendo archivo para escribir".
+  # Peor aún: la ruta elegida queda en el registro (InstallLocation) y
+  # multiUser.nsh la reutiliza en cada instalación siguiente, así que el
+  # equipo se quedaba roto para siempre. Instalar por usuario en
+  # %LOCALAPPDATA%\Programs es además lo que permite que la auto-
+  # actualización no pida UAC cada vez (igual que VS Code, Slack o Figma).
+  allowToChangeInstallationDirectory: false
   # La creación automática y silenciosa se apaga a propósito — la casilla
   # de build/installer.nsh (customFinishPage) es la única vía ahora, para
   # que sea una elección visible en vez de algo que ya pasó sin avisar.

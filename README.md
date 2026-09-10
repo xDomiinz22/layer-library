@@ -65,6 +65,10 @@ Al final del asistente hay una casilla **"Crear acceso directo en el
 escritorio"**, marcada por defecto — el acceso directo en el menú inicio se
 crea siempre, el del escritorio ahora es opcional.
 
+Se instala **para tu usuario** en `%LOCALAPPDATA%\Programs\Layer Library`, sin
+pedir permisos de administrador y sin preguntar por la carpeta. Es a propósito:
+es lo que permite que la auto-actualización no tenga que pedir UAC cada vez.
+
 **Linux** — mismo enlace de arriba, `.AppImage`: dale permiso de ejecución
 (`chmod +x`) y ábrelo, no hace falta instalar nada más.
 

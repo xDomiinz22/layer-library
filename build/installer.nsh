@@ -43,6 +43,42 @@
   !insertmacro MUI_PAGE_FINISH
 !macroend
 
+; Rescate de equipos que quedaron apuntando a una carpeta donde no se puede
+; escribir. multiUser.nsh (setInstallModePerUser) hace, en .onInit:
+;
+;   ReadRegStr $perUserInstallationFolder HKCU "..." InstallLocation
+;   ${if} $perUserInstallationFolder != ""
+;     StrCpy $INSTDIR $perUserInstallationFolder
+;
+; es decir, reutiliza SIEMPRE la ruta de la instalación anterior. Quien en su
+; día eligió C:\Program Files (cuando aún había página de carpeta) se queda
+; atrapado: el instalador es por-usuario y no eleva a administrador, así que
+; cada intento vuelve a esa ruta y vuelve a fallar. Se ve como "error abriendo
+; archivo para escribir" en los dos únicos `File` que escriben directos a
+; $INSTDIR (uninstallerIcon.ico y "Uninstall Layer Library.exe") — los
+; archivos de la app no dan ese diálogo porque salen de un 7z a temp.
+;
+; customInit se inserta justo DESPUÉS de initMultiUser (installer.nsi), que es
+; donde $INSTDIR ya está resuelto, así que aquí se puede corregir: se prueba a
+; escribir de verdad un archivo y, si no se puede, se cae a la ruta por
+; defecto por usuario. La comprobación es por escritura real y no por nombre
+; de carpeta, así que cubre también unidades de red caídas, USB retirados o
+; permisos raros, no solo Program Files.
+!macro customInit
+  Var /GLOBAL llWriteTest
+
+  CreateDirectory "$INSTDIR"
+  ClearErrors
+  FileOpen $llWriteTest "$INSTDIR\.layerlibrary-write-test" w
+  ${if} ${errors}
+    ClearErrors
+    StrCpy $INSTDIR "$LOCALAPPDATA\Programs\${APP_FILENAME}"
+  ${else}
+    FileClose $llWriteTest
+    Delete "$INSTDIR\.layerlibrary-write-test"
+  ${endif}
+!macroend
+
 ; Las versiones 1.0.0/1.0.1 fijaban nsis.uninstallerIcon, lo que hacía que el
 ; instalador extrajera "uninstallerIcon.ico" a la carpeta de instalación en
 ; cada install. Ese archivo suelto se quedaba entre versiones y, si el shell
