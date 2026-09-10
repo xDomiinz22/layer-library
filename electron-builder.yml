@@ -23,8 +23,17 @@ nsis:
   # que sea una elección visible en vez de algo que ya pasó sin avisar.
   createDesktopShortcut: false
   shortcutName: Layer Library
-  installerIcon: build/icon.ico
-  uninstallerIcon: build/icon.ico
+  # Sin installerIcon/uninstallerIcon a propósito: al fijar uninstallerIcon,
+  # electron-builder añade un paso en tiempo de instalación que extrae
+  # "uninstallerIcon.ico" a la carpeta de instalación (installSection.nsh:
+  # `File /oname=uninstallerIcon.ico`). En equipos donde ese archivo quedó
+  # de una instalación anterior (bloqueado por el shell porque el registro
+  # lo usa como DisplayIcon, o marcado de solo lectura) NSIS aborta con
+  # "error abriendo archivo para escribir ...uninstallerIcon.ico".
+  # Sin estas dos claves, el icono se sigue incrustando en el .exe del
+  # instalador y del desinstalador en tiempo de compilación (MUI_ICON /
+  # MUI_UNICON caen a `win.icon` = build/icon.ico), sin escribir nada en
+  # disco durante la instalación. Mismo resultado visual, sin el fallo.
   include: build/installer.nsh
 linux:
   target:

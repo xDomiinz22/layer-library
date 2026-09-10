@@ -42,3 +42,16 @@
 
   !insertmacro MUI_PAGE_FINISH
 !macroend
+
+; Las versiones 1.0.0/1.0.1 fijaban nsis.uninstallerIcon, lo que hacía que el
+; instalador extrajera "uninstallerIcon.ico" a la carpeta de instalación en
+; cada install. Ese archivo suelto se quedaba entre versiones y, si el shell
+; lo tenía bloqueado (lo usaba como DisplayIcon) o de solo lectura, el
+; siguiente instalador abortaba con "error abriendo archivo para escribir
+; ...uninstallerIcon.ico". Ya no se genera (se quitaron installerIcon/
+; uninstallerIcon), pero hay que barrer el que dejaron las instalaciones
+; viejas. Si está bloqueado, /REBOOTOK lo marca para borrar al reiniciar.
+!macro customInstall
+  Delete /REBOOTOK "$INSTDIR\uninstallerIcon.ico"
+  ClearErrors
+!macroend
