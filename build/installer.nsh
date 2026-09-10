@@ -73,6 +73,23 @@
   ${if} ${errors}
     ClearErrors
     StrCpy $INSTDIR "$LOCALAPPDATA\Programs\${APP_FILENAME}"
+
+    ; Además de redirigir, hay que DESVINCULAR la instalación vieja: si se
+    ; dejan las claves del registro, uninstallSection sigue apuntando allí y
+    ; installSection.nsh:52 lanza uninstallOldVersion contra una copia que no
+    ; se puede borrar sin admin. Ese desinstalador devuelve != 0, se reintenta
+    ; 5 veces (installUtil.nsh:219) y acaba enseñando el mensaje
+    ; "No se puede cerrar Layer Library" — que despista muchísimo, porque el
+    ; problema no es que la app esté abierta — y después handleUninstallResult
+    ; puede hacer Quit y abortar la instalación entera.
+    ; Borrando las claves, uninstallOldVersion lee UninstallString vacío y
+    ; vuelve de inmediato: la instalación nueva sigue limpia. Los archivos
+    ; viejos quedan huérfanos en disco (se borran a mano, requieren admin).
+    ; APP_GUID y UNINSTALL_APP_KEY son defines de línea de comandos, así que
+    ; sí están disponibles aquí (a diferencia de los de common.nsh).
+    DeleteRegKey HKCU "Software\${APP_GUID}"
+    DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${UNINSTALL_APP_KEY}"
+    ClearErrors
   ${else}
     FileClose $llWriteTest
     Delete "$INSTDIR\.layerlibrary-write-test"
